@@ -1,0 +1,36 @@
+syntax = "proto3";
+
+package hydro.agent.v1;
+
+service AgentRpcService {
+  rpc ExecuteTask (ExecuteTaskRequest) returns (ExecuteTaskReply);
+  rpc QueryFile (QueryFileRequest) returns (QueryFileReply);
+}
+
+message ExecuteTaskRequest {
+  string task_text = 1;
+  string scene_id = 2;
+}
+
+message ExecuteTaskReply {
+  string task_text = 1;
+  string scene_id = 2;
+  string target_type = 3;
+  double risk_score = 4;
+  string risk_level = 5;
+  string recommendation_action = 6;
+  string case_id = 7;
+  string case_status = 8;
+}
+
+message QueryFileRequest {
+  string file_id = 1;
+}
+
+message QueryFileReply {
+  string file_id = 1;
+  string file_name = 2;
+  string content_type = 3;
+  int64 size = 4;
+  string download_url = 5;
+}

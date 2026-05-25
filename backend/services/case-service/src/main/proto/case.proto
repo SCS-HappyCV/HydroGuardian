@@ -1,0 +1,38 @@
+syntax = "proto3";
+
+package hydro.case.v1;
+
+option java_multiple_files = true;
+option java_package = "com.hydro.grpc.casev1";
+option java_outer_classname = "CaseProto";
+
+service CaseRpcService {
+  rpc CreateCase (CreateCaseRequest) returns (CaseReply);
+  rpc GetCase (GetCaseRequest) returns (CaseReply);
+}
+
+message CreateCaseRequest {
+  string title = 1;
+  string task_text = 2;
+  string scene_id = 3;
+  string risk_level = 4;
+  string assignee = 5;
+  string tags = 6;
+}
+
+message GetCaseRequest {
+  string case_id = 1;
+}
+
+message CaseReply {
+  string case_id = 1;
+  string title = 2;
+  string task_text = 3;
+  string scene_id = 4;
+  string status = 5;
+  string risk_level = 6;
+  string assignee = 7;
+  string tags = 8;
+  string created_at = 9;
+}
+

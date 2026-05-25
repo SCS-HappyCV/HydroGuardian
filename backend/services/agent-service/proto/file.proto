@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+package hydro.file.v1;
+
+service FileRpcService {
+  rpc UploadFile (UploadFileRequest) returns (FileReply);
+  rpc GetFile (GetFileRequest) returns (FileReply);
+}
+
+message UploadFileRequest {
+  string file_name = 1;
+  string content_type = 2;
+  bytes content = 3;
+}
+
+message GetFileRequest {
+  string file_id = 1;
+}
+
+message FileReply {
+  string file_id = 1;
+  string file_name = 2;
+  string content_type = 3;
+  int64 size = 4;
+  string download_url = 5;
+}

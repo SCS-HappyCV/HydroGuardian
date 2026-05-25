@@ -1,0 +1,238 @@
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: hydro-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root123
+      MYSQL_USER: hydro
+      MYSQL_PASSWORD: hydro123
+      MYSQL_DATABASE: case_service_db
+      TZ: Asia/Shanghai
+    ports:
+      - "33069:3306"
+    volumes:
+      - ./data/mysql/data:/var/lib/mysql
+      - ./data/mysql/init:/docker-entrypoint-initdb.d
+      - ./data/mysql/conf/my.cnf:/etc/mysql/conf.d/my.cnf:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot123"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  nacos:
+    image: nacos/nacos-server:v2.4.3
+    container_name: hydro-nacos
+    environment:
+      MODE: standalone
+      PREFER_HOST_MODE: hostname
+      NACOS_AUTH_ENABLE: "false"
+      TZ: Asia/Shanghai
+    ports:
+      - "8848:8848"
+      - "9848:9848"
+    volumes:
+      - ./data/nacos/data:/home/nacos/data
+      - ./data/nacos/logs:/home/nacos/logs
+      - ./data/nacos/conf/custom.properties:/home/nacos/init.d/custom.properties:ro
+
+  redis:
+    image: redis:7.2
+    container_name: hydro-redis
+    command: ["redis-server", "/usr/local/etc/redis/redis.conf"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./data/redis/data:/data
+      - ./data/redis/conf/redis.conf:/usr/local/etc/redis/redis.conf:ro
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    container_name: hydro-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: hydro
+      RABBITMQ_DEFAULT_PASS: hydro123
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - ./data/rabbitmq/data:/var/lib/rabbitmq
+      - ./data/rabbitmq/conf/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+
+  minio:
+    image: minio/minio:latest
+    container_name: hydro-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: hydro
+      MINIO_ROOT_PASSWORD: hydro12345
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - ./data/minio/data:/data
+      - ./data/minio/conf:/root/.minio
+
+  case-service:
+    image: maven:3.9.9-eclipse-temurin-21
+    container_name: hydro-case-service
+    working_dir: /workspace
+    command: ["mvn", "-DskipTests", "spring-boot:run"]
+    ports:
+      - "9092:9092"
+    volumes:
+      - ./services/case-service:/workspace
+      - maven_repo:/root/.m2
+    develop:
+      watch:
+        - path: ./services/case-service/src
+          action: restart
+        - path: ./services/case-service/pom.xml
+          action: restart
+    environment:
+      SERVER_PORT: 0
+      GRPC_SERVER_PORT: 9092
+      NACOS_SERVER_ADDR: nacos:8848
+      NACOS_NAMESPACE: public
+      NACOS_GROUP: DEFAULT_GROUP
+      NACOS_CLUSTER: DEFAULT
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_NAME: case_service_db
+      DB_USER: hydro
+      DB_PASSWORD: hydro123
+    depends_on:
+      mysql:
+        condition: service_healthy
+      nacos:
+        condition: service_started
+
+  file-service:
+    image: maven:3.9.9-eclipse-temurin-21
+    container_name: hydro-file-service
+    working_dir: /workspace
+    command: ["mvn", "-DskipTests", "spring-boot:run"]
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./services/file-service:/workspace
+      - maven_repo:/root/.m2
+    develop:
+      watch:
+        - path: ./services/file-service/src
+          action: restart
+        - path: ./services/file-service/pom.xml
+          action: restart
+    depends_on:
+      mysql:
+        condition: service_healthy
+      minio:
+        condition: service_started
+      nacos:
+        condition: service_started
+    environment:
+      SERVER_PORT: 0
+      GRPC_SERVER_PORT: 9093
+      NACOS_SERVER_ADDR: nacos:8848
+      NACOS_NAMESPACE: public
+      NACOS_GROUP: DEFAULT_GROUP
+      NACOS_CLUSTER: DEFAULT
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_NAME: file_service_db
+      DB_USER: hydro
+      DB_PASSWORD: hydro123
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: hydro
+      MINIO_SECRET_KEY: hydro12345
+      MINIO_BUCKET: hydro-files
+
+  agent-service:
+    build:
+      context: ./services/agent-service
+      dockerfile: Dockerfile
+    container_name: hydro-agent-service
+    command: ["sh", "-lc", "sh ./scripts/build_proto.sh && python ./src/main.py"]
+    volumes:
+      - ./services/agent-service:/app
+    develop:
+      watch:
+        - path: ./services/agent-service/src
+          action: restart
+        - path: ./services/agent-service/proto
+          action: restart
+        - path: ./services/agent-service/scripts
+          action: restart
+        - path: ./services/agent-service/requirements.txt
+          action: rebuild
+        - path: ./services/agent-service/Dockerfile
+          action: rebuild
+    environment:
+      AGENT_SERVICE_PORT: 8081
+      AGENT_GRPC_PORT: 9091
+      CASE_SERVICE_NAME: case-service
+      FILE_SERVICE_NAME: file-service
+      NACOS_SERVER_ADDR: nacos:8848
+      NACOS_SERVICE_NAME: agent-service
+      REDIS_URL: redis://redis:6379/0
+      RABBITMQ_URL: amqp://hydro:hydro123@rabbitmq:5672/
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+    ports:
+      - "9091:9091"
+    depends_on:
+      case-service:
+        condition: service_started
+      file-service:
+        condition: service_started
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      nacos:
+        condition: service_started
+
+  api-gateway:
+    image: maven:3.9.9-eclipse-temurin-21
+    container_name: hydro-api-gateway
+    working_dir: /workspace
+    command: ["mvn", "-DskipTests", "spring-boot:run"]
+    volumes:
+      - ./services/api-gateway:/workspace
+      - maven_repo:/root/.m2
+    develop:
+      watch:
+        - path: ./services/api-gateway/src
+          action: restart
+        - path: ./services/api-gateway/pom.xml
+          action: restart
+    environment:
+      SERVER_PORT: 8080
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_NAME: agent_service_db
+      DB_USER: hydro
+      DB_PASSWORD: hydro123
+      NACOS_SERVER_ADDR: nacos:8848
+      AGENT_SERVICE_NAME: agent-service
+    ports:
+      - "8080:8080"
+    depends_on:
+      agent-service:
+        condition: service_started
+      mysql:
+        condition: service_healthy
+      nacos:
+        condition: service_started
+
+volumes:
+  maven_repo:

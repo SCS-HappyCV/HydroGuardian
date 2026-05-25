@@ -1,0 +1,7 @@
+fastapi==0.115.12
+uvicorn==0.30.6
+httpx==0.27.2
+langgraph==0.2.60
+langchain-core==0.3.66
+grpcio==1.64.1
+grpcio-tools==1.64.1
