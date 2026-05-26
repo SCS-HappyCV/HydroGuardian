@@ -1,0 +1,424 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "首页与全局总览接口",
+    "version": "0.1.0",
+    "description": "对应 dashboard 首页展示数据。"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8080"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Dashboard"
+    }
+  ],
+  "paths": {
+    "/api/v1/dashboard/metrics": {
+      "get": {
+        "tags": [
+          "Dashboard"
+        ],
+        "summary": "获取总览指标卡",
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MetricsResponse"
+                },
+                "example": {
+                  "code": "0",
+                  "message": "OK",
+                  "traceId": "trace-20260526-001",
+                  "data": {
+                    "todayTaskCount": 23,
+                    "runningTaskCount": 4,
+                    "highRiskCount": 7,
+                    "pendingWorkorderCount": 12
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/dashboard/alerts": {
+      "get": {
+        "tags": [
+          "Dashboard"
+        ],
+        "summary": "获取告警横幅与待处理事项",
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AlertListResponse"
+                },
+                "example": {
+                  "code": "0",
+                  "message": "OK",
+                  "traceId": "trace-20260526-001",
+                  "data": [
+                    {
+                      "id": "alert-001",
+                      "level": "warning",
+                      "title": "高风险点位待复核",
+                      "content": "北岸排水渠新增 2 个高风险点位。",
+                      "createdAt": "2026-05-26T10:00:00Z"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/dashboard/recent-tasks": {
+      "get": {
+        "tags": [
+          "Dashboard"
+        ],
+        "summary": "获取近期任务列表",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "type": "integer",
+              "default": 10,
+              "minimum": 1,
+              "maximum": 50
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecentTaskListResponse"
+                },
+                "example": {
+                  "code": "0",
+                  "message": "OK",
+                  "traceId": "trace-20260526-001",
+                  "data": [
+                    {
+                      "taskId": "task-1002",
+                      "taskName": "北岸排水渠例行巡查",
+                      "status": "running",
+                      "riskLevel": "medium",
+                      "createdAt": "2026-05-26T10:00:00Z"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/dashboard/risk-distribution": {
+      "get": {
+        "tags": [
+          "Dashboard"
+        ],
+        "summary": "获取风险等级分布",
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RiskDistributionResponse"
+                },
+                "example": {
+                  "code": "0",
+                  "message": "OK",
+                  "traceId": "trace-20260526-001",
+                  "data": {
+                    "low": 15,
+                    "medium": 22,
+                    "high": 7
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/dashboard/risk-heatmap-preview": {
+      "get": {
+        "tags": [
+          "Dashboard"
+        ],
+        "summary": "获取风险热力预览数据",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "zoneId",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HeatmapPreviewResponse"
+                },
+                "example": {
+                  "code": "0",
+                  "message": "OK",
+                  "traceId": "trace-20260526-001",
+                  "data": [
+                    {
+                      "lng": 121.5123,
+                      "lat": 31.2456,
+                      "value": 0.82
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ApiEnvelope": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "example": "0"
+          },
+          "message": {
+            "type": "string",
+            "example": "OK"
+          },
+          "traceId": {
+            "type": "string",
+            "example": "trace-20260526-001"
+          }
+        }
+      },
+      "MetricsResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ApiEnvelope"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "object",
+                "properties": {
+                  "todayTaskCount": {
+                    "type": "integer",
+                    "example": 23
+                  },
+                  "runningTaskCount": {
+                    "type": "integer",
+                    "example": 4
+                  },
+                  "highRiskCount": {
+                    "type": "integer",
+                    "example": 7
+                  },
+                  "pendingWorkorderCount": {
+                    "type": "integer",
+                    "example": 12
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
+      "AlertItem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "alert-001"
+          },
+          "level": {
+            "type": "string",
+            "enum": [
+              "info",
+              "warning",
+              "error"
+            ],
+            "example": "warning"
+          },
+          "title": {
+            "type": "string",
+            "example": "高风险点位待复核"
+          },
+          "content": {
+            "type": "string",
+            "example": "北岸排水渠新增 2 个高风险点位。"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "AlertListResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ApiEnvelope"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/AlertItem"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "RecentTask": {
+        "type": "object",
+        "properties": {
+          "taskId": {
+            "type": "string",
+            "example": "task-1002"
+          },
+          "taskName": {
+            "type": "string",
+            "example": "北岸排水渠例行巡查"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "running",
+              "success",
+              "failed"
+            ],
+            "example": "running"
+          },
+          "riskLevel": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high"
+            ],
+            "example": "medium"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "RecentTaskListResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ApiEnvelope"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/RecentTask"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "RiskDistributionResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ApiEnvelope"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "object",
+                "properties": {
+                  "low": {
+                    "type": "integer",
+                    "example": 15
+                  },
+                  "medium": {
+                    "type": "integer",
+                    "example": 22
+                  },
+                  "high": {
+                    "type": "integer",
+                    "example": 7
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
+      "HeatPoint": {
+        "type": "object",
+        "properties": {
+          "lng": {
+            "type": "number",
+            "format": "double",
+            "example": 121.5123
+          },
+          "lat": {
+            "type": "number",
+            "format": "double",
+            "example": 31.2456
+          },
+          "value": {
+            "type": "number",
+            "example": 0.82
+          }
+        }
+      },
+      "HeatmapPreviewResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ApiEnvelope"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/HeatPoint"
+                }
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
+}

@@ -1,4 +1,3 @@
-
 <script setup lang="ts">
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -14,6 +13,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import SafeIcon from '@/components/common/SafeIcon.vue'
 import { toast } from 'vue-sonner'
+import { clearAuthSession, useAuthState } from '@/lib/auth'
 
 const props = defineProps<{
   currentPath: string
@@ -21,12 +21,26 @@ const props = defineProps<{
 
 const taskQueueCount = ref(3)
 const systemStatus = ref<'normal' | 'warning' | 'error'>('normal')
+const defaultAvatar = 'https://spark-builder.s3.cn-north-1.amazonaws.com.cn/image/2026/5/25/77fefb85-a38b-48f8-8e7d-e7a6df12426d.png'
+const { authUser, isLoggedIn, loadAuthState } = useAuthState()
 
 const handleSearch = () => {
   toast.info('全局搜索功能正在开发中')
 }
 
-const handleLogout = () => {
+onMounted(() => {
+  loadAuthState()
+})
+
+const handleGoToLogin = () => {
+  if (typeof window === 'undefined') return
+
+  const redirectUrl = `${window.location.pathname}${window.location.search}${window.location.hash}`
+  window.location.href = `./page-3205032.html?redirectUrl=${encodeURIComponent(redirectUrl)}`
+}
+
+const handleSignOut = () => {
+  clearAuthSession()
   toast.success('已安全退出登录')
 }
 </script>
@@ -54,8 +68,8 @@ const handleLogout = () => {
     <div class="flex-1 max-w-md mx-8 hidden lg:block">
       <div class="relative group">
         <SafeIcon name="Search" :size="16" class="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors" />
-        <Input 
-          placeholder="搜索任务、工单或风险点..." 
+        <Input
+          placeholder="搜索任务、工单或风险点..."
           class="pl-9 bg-muted/30 border-none focus-visible:ring-1 focus-visible:ring-primary h-9"
           @keyup.enter="handleSearch"
         />
@@ -70,29 +84,29 @@ const handleLogout = () => {
             {{ taskQueueCount }}
           </Badge>
         </Button>
-        
+
         <Button variant="ghost" size="icon" class="relative" title="通知消息">
           <SafeIcon name="Bell" :size="20" />
           <div class="absolute top-2 right-2.5 h-2 w-2 bg-destructive rounded-full border border-background" />
         </Button>
 
-        <Button variant="ghost" size="icon" title="系统帮助" @click="toast('帮助文档请查阅内部知识库')">
+        <Button variant="ghost" size="icon" title="系统帮助" @click="toast('帮助文档请查看内部知识库')">
           <SafeIcon name="HelpCircle" :size="20" />
         </Button>
       </div>
 
       <div class="w-px h-6 bg-border mx-1" />
 
-      <DropdownMenu>
+      <DropdownMenu v-if="isLoggedIn && authUser">
         <DropdownMenuTrigger as-child>
           <Button variant="ghost" class="gap-2 px-2 hover:bg-muted/50 transition-colors">
             <Avatar class="h-8 w-8 border border-border">
-              <AvatarImage src="https://spark-builder.s3.cn-north-1.amazonaws.com.cn/image/2026/5/25/77fefb85-a38b-48f8-8e7d-e7a6df12426d.png" alt="User" />
-              <AvatarFallback>Admin</AvatarFallback>
+              <AvatarImage :src="authUser.avatarUrl || defaultAvatar" alt="User" />
+              <AvatarFallback>{{ authUser.name.slice(0, 2) }}</AvatarFallback>
             </Avatar>
             <div class="flex flex-col items-start text-left hidden sm:flex">
-              <span class="text-sm font-medium leading-none">系统管理员</span>
-              <span class="text-[10px] text-muted-foreground mt-0.5">安全运营部</span>
+              <span class="text-sm font-medium leading-none">{{ authUser.name }}</span>
+              <span class="text-[10px] text-muted-foreground mt-0.5">{{ authUser.department || authUser.role || '-' }}</span>
             </div>
             <SafeIcon name="ChevronDown" :size="14" class="text-muted-foreground" />
           </Button>
@@ -107,11 +121,16 @@ const handleLogout = () => {
             <SafeIcon name="History" :size="14" class="mr-2" /> 我的足迹
           </DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem class="text-destructive cursor-pointer" @click="handleLogout">
+          <DropdownMenuItem class="text-destructive cursor-pointer" @click="handleSignOut">
             <SafeIcon name="LogOut" :size="14" class="mr-2" /> 退出登录
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+
+      <Button v-else variant="default" class="gap-2 px-3" @click="handleGoToLogin">
+        <SafeIcon name="LogIn" :size="14" />
+        登录
+      </Button>
     </div>
   </header>
 </template>

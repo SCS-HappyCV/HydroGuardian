@@ -1,0 +1,552 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "知识库与规则管理接口",
+    "version": "0.1.0",
+    "description": "对应知识库页、规则编辑器、模板编辑器。"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8080"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Knowledge"
+    }
+  ],
+  "paths": {
+    "/api/v1/rules": {
+      "get": {
+        "tags": [
+          "Knowledge"
+        ],
+        "summary": "查询规则列表",
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RuleListResponse"
+                },
+                "example": {
+                  "code": "0",
+                  "message": "OK",
+                  "traceId": "trace-20260526-501",
+                  "data": [
+                    {
+                      "id": "rule-001",
+                      "name": "近水扰动高风险判定",
+                      "expression": "distance_to_water < 20 && score > 0.8",
+                      "enabled": true,
+                      "updatedAt": "2026-05-26T10:00:00Z"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Knowledge"
+        ],
+        "summary": "新建规则",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RuleUpsertRequest"
+              },
+              "examples": {
+                "default": {
+                  "summary": "Default request example",
+                  "value": {
+                    "name": "string",
+                    "expression": "string",
+                    "enabled": true
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RuleDetailResponse"
+                },
+                "example": {
+                  "code": "0",
+                  "message": "OK",
+                  "traceId": "trace-20260526-501",
+                  "data": {
+                    "id": "rule-001",
+                    "name": "近水扰动高风险判定",
+                    "expression": "distance_to_water < 20 && score > 0.8",
+                    "enabled": true,
+                    "updatedAt": "2026-05-26T10:00:00Z"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/rules/{ruleId}": {
+      "patch": {
+        "tags": [
+          "Knowledge"
+        ],
+        "summary": "更新规则",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ruleId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RuleUpsertRequest"
+              },
+              "examples": {
+                "default": {
+                  "summary": "Default request example",
+                  "value": {
+                    "name": "string",
+                    "expression": "string",
+                    "enabled": true
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RuleDetailResponse"
+                },
+                "example": {
+                  "code": "0",
+                  "message": "OK",
+                  "traceId": "trace-20260526-501",
+                  "data": {
+                    "id": "rule-001",
+                    "name": "近水扰动高风险判定",
+                    "expression": "distance_to_water < 20 && score > 0.8",
+                    "enabled": true,
+                    "updatedAt": "2026-05-26T10:00:00Z"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Knowledge"
+        ],
+        "summary": "删除规则",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ruleId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiEnvelope"
+                },
+                "example": {
+                  "code": "0",
+                  "message": "OK",
+                  "traceId": "trace-20260526-501"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/templates": {
+      "get": {
+        "tags": [
+          "Knowledge"
+        ],
+        "summary": "查询建议模板列表",
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TemplateListResponse"
+                },
+                "example": {
+                  "code": "0",
+                  "message": "OK",
+                  "traceId": "trace-20260526-501",
+                  "data": [
+                    {
+                      "id": "tpl-001",
+                      "name": "雨后风险处置建议模板",
+                      "content": "请按风险等级输出处置建议...",
+                      "version": "v1.2.0",
+                      "updatedAt": "2026-05-26T10:00:00Z"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Knowledge"
+        ],
+        "summary": "新建模板",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TemplateUpsertRequest"
+              },
+              "examples": {
+                "default": {
+                  "summary": "Default request example",
+                  "value": {
+                    "name": "string",
+                    "content": "string",
+                    "version": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TemplateDetailResponse"
+                },
+                "example": {
+                  "code": "0",
+                  "message": "OK",
+                  "traceId": "trace-20260526-501",
+                  "data": {
+                    "id": "tpl-001",
+                    "name": "雨后风险处置建议模板",
+                    "content": "请按风险等级输出处置建议...",
+                    "version": "v1.2.0",
+                    "updatedAt": "2026-05-26T10:00:00Z"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/templates/{templateId}": {
+      "patch": {
+        "tags": [
+          "Knowledge"
+        ],
+        "summary": "更新模板",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "templateId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TemplateUpsertRequest"
+              },
+              "examples": {
+                "default": {
+                  "summary": "Default request example",
+                  "value": {
+                    "name": "string",
+                    "content": "string",
+                    "version": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TemplateDetailResponse"
+                },
+                "example": {
+                  "code": "0",
+                  "message": "OK",
+                  "traceId": "trace-20260526-501",
+                  "data": {
+                    "id": "tpl-001",
+                    "name": "雨后风险处置建议模板",
+                    "content": "请按风险等级输出处置建议...",
+                    "version": "v1.2.0",
+                    "updatedAt": "2026-05-26T10:00:00Z"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Knowledge"
+        ],
+        "summary": "删除模板",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "templateId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiEnvelope"
+                },
+                "example": {
+                  "code": "0",
+                  "message": "OK",
+                  "traceId": "trace-20260526-501"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ApiEnvelope": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "example": "0"
+          },
+          "message": {
+            "type": "string",
+            "example": "OK"
+          },
+          "traceId": {
+            "type": "string",
+            "example": "trace-20260526-501"
+          }
+        }
+      },
+      "Rule": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "rule-001"
+          },
+          "name": {
+            "type": "string",
+            "example": "近水扰动高风险判定"
+          },
+          "expression": {
+            "type": "string",
+            "example": "distance_to_water < 20 && score > 0.8"
+          },
+          "enabled": {
+            "type": "boolean",
+            "example": true
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "RuleUpsertRequest": {
+        "type": "object",
+        "required": [
+          "name",
+          "expression"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "expression": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean",
+            "default": true
+          }
+        }
+      },
+      "RuleListResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ApiEnvelope"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/Rule"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "RuleDetailResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ApiEnvelope"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/Rule"
+              }
+            }
+          }
+        ]
+      },
+      "Template": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "tpl-001"
+          },
+          "name": {
+            "type": "string",
+            "example": "雨后风险处置建议模板"
+          },
+          "content": {
+            "type": "string",
+            "example": "请按风险等级输出处置建议..."
+          },
+          "version": {
+            "type": "string",
+            "example": "v1.2.0"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "TemplateUpsertRequest": {
+        "type": "object",
+        "required": [
+          "name",
+          "content"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "content": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          }
+        }
+      },
+      "TemplateListResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ApiEnvelope"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/Template"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "TemplateDetailResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ApiEnvelope"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/Template"
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
+}

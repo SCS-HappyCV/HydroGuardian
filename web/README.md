@@ -45,7 +45,7 @@ pnpm preview
 ```
 
 - 当前配置为 `output: "static"`，构建产物是静态 HTML/JS/CSS。
-- 根路由 `index.astro` 会重定向到 `dashboard.html`。
+- 根路由 `index.astro` 直接渲染首页 `HomePage.vue`。
 
 ## 页面说明（主要模块）
 

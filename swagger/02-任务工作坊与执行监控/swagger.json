@@ -1,0 +1,596 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "任务工作坊与执行监控接口",
+    "version": "0.1.0",
+    "description": "对应任务创建、执行监控、日志查看、结果查看页面。"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8080"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Task"
+    }
+  ],
+  "paths": {
+    "/api/v1/tasks": {
+      "get": {
+        "tags": [
+          "Task"
+        ],
+        "summary": "分页查询任务列表",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            }
+          },
+          {
+            "in": "query",
+            "name": "pageSize",
+            "schema": {
+              "type": "integer",
+              "default": 20
+            }
+          },
+          {
+            "in": "query",
+            "name": "keyword",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "queued",
+                "running",
+                "success",
+                "failed"
+              ]
+            }
+          },
+          {
+            "in": "query",
+            "name": "zoneId",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskPageResponse"
+                },
+                "example": {
+                  "code": "0",
+                  "message": "OK",
+                  "traceId": "trace-20260526-101",
+                  "data": {
+                    "page": 1,
+                    "pageSize": 20,
+                    "total": 128,
+                    "items": [
+                      {
+                        "id": "task-1002",
+                        "name": "北岸排水渠例行巡查",
+                        "status": "running",
+                        "priority": "medium",
+                        "progress": 68,
+                        "createdAt": "2026-05-26T10:00:00Z",
+                        "updatedAt": "2026-05-26T10:00:00Z"
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Task"
+        ],
+        "summary": "创建任务",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTaskRequest"
+              },
+              "examples": {
+                "default": {
+                  "summary": "Default request example",
+                  "value": {
+                    "inputText": "请检查滨海泵站周边夜间异常水位波动并生成风险清单",
+                    "templateId": "tpl-001",
+                    "zoneId": "zone-01",
+                    "sampleId": "sample-001",
+                    "priority": "medium"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "创建成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskDetailResponse"
+                },
+                "example": {
+                  "code": "0",
+                  "message": "OK",
+                  "traceId": "trace-20260526-101",
+                  "data": {
+                    "id": "task-1002",
+                    "name": "北岸排水渠例行巡查",
+                    "status": "running",
+                    "priority": "medium",
+                    "progress": 68,
+                    "createdAt": "2026-05-26T10:00:00Z",
+                    "updatedAt": "2026-05-26T10:00:00Z"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tasks/{taskId}": {
+      "get": {
+        "tags": [
+          "Task"
+        ],
+        "summary": "获取任务详情",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "taskId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskDetailResponse"
+                },
+                "example": {
+                  "code": "0",
+                  "message": "OK",
+                  "traceId": "trace-20260526-101",
+                  "data": {
+                    "id": "task-1002",
+                    "name": "北岸排水渠例行巡查",
+                    "status": "running",
+                    "priority": "medium",
+                    "progress": 68,
+                    "createdAt": "2026-05-26T10:00:00Z",
+                    "updatedAt": "2026-05-26T10:00:00Z"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tasks/{taskId}/execute": {
+      "post": {
+        "tags": [
+          "Task"
+        ],
+        "summary": "启动任务执行",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "taskId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "启动成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiEnvelope"
+                },
+                "example": {
+                  "code": "0",
+                  "message": "OK",
+                  "traceId": "trace-20260526-101"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tasks/{taskId}/cancel": {
+      "post": {
+        "tags": [
+          "Task"
+        ],
+        "summary": "取消任务",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "taskId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "取消成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiEnvelope"
+                },
+                "example": {
+                  "code": "0",
+                  "message": "OK",
+                  "traceId": "trace-20260526-101"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tasks/{taskId}/logs": {
+      "get": {
+        "tags": [
+          "Task"
+        ],
+        "summary": "获取任务执行日志（轮询）",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "taskId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "schema": {
+              "type": "string",
+              "description": "增量游标"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskLogResponse"
+                },
+                "example": {
+                  "code": "0",
+                  "message": "OK",
+                  "traceId": "trace-20260526-101",
+                  "data": {
+                    "nextCursor": "string",
+                    "logs": [
+                      {
+                        "ts": "2026-05-26T10:00:00Z",
+                        "level": "info",
+                        "message": "已完成风险识别阶段，开始工单写入。"
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tasks/{taskId}/result": {
+      "get": {
+        "tags": [
+          "Task"
+        ],
+        "summary": "获取任务结果",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "taskId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskResultResponse"
+                },
+                "example": {
+                  "code": "0",
+                  "message": "OK",
+                  "traceId": "trace-20260526-101",
+                  "data": {
+                    "summary": "识别高风险点位 2 个，中风险点位 4 个。",
+                    "caseId": "case-2d9c1bf7",
+                    "riskScore": 0.82
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ApiEnvelope": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "example": "0"
+          },
+          "message": {
+            "type": "string",
+            "example": "OK"
+          },
+          "traceId": {
+            "type": "string",
+            "example": "trace-20260526-101"
+          }
+        }
+      },
+      "CreateTaskRequest": {
+        "type": "object",
+        "required": [
+          "inputText",
+          "zoneId",
+          "priority"
+        ],
+        "properties": {
+          "inputText": {
+            "type": "string",
+            "example": "请检查滨海泵站周边夜间异常水位波动并生成风险清单"
+          },
+          "templateId": {
+            "type": "string",
+            "example": "tpl-001"
+          },
+          "zoneId": {
+            "type": "string",
+            "example": "zone-01"
+          },
+          "sampleId": {
+            "type": "string",
+            "example": "sample-001"
+          },
+          "priority": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high"
+            ],
+            "example": "medium"
+          }
+        }
+      },
+      "Task": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "task-1002"
+          },
+          "name": {
+            "type": "string",
+            "example": "北岸排水渠例行巡查"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "running",
+              "success",
+              "failed"
+            ],
+            "example": "running"
+          },
+          "priority": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high"
+            ],
+            "example": "medium"
+          },
+          "progress": {
+            "type": "integer",
+            "example": 68
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "TaskPageResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ApiEnvelope"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "object",
+                "properties": {
+                  "page": {
+                    "type": "integer",
+                    "example": 1
+                  },
+                  "pageSize": {
+                    "type": "integer",
+                    "example": 20
+                  },
+                  "total": {
+                    "type": "integer",
+                    "example": 128
+                  },
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/Task"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
+      "TaskDetailResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ApiEnvelope"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/Task"
+              }
+            }
+          }
+        ]
+      },
+      "TaskLogItem": {
+        "type": "object",
+        "properties": {
+          "ts": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "level": {
+            "type": "string",
+            "enum": [
+              "info",
+              "warning",
+              "error",
+              "success"
+            ],
+            "example": "info"
+          },
+          "message": {
+            "type": "string",
+            "example": "已完成风险识别阶段，开始工单写入。"
+          }
+        }
+      },
+      "TaskLogResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ApiEnvelope"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "object",
+                "properties": {
+                  "nextCursor": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "logs": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/TaskLogItem"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
+      "TaskResultResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ApiEnvelope"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "object",
+                "properties": {
+                  "summary": {
+                    "type": "string",
+                    "example": "识别高风险点位 2 个，中风险点位 4 个。"
+                  },
+                  "caseId": {
+                    "type": "string",
+                    "example": "case-2d9c1bf7"
+                  },
+                  "riskScore": {
+                    "type": "number",
+                    "example": 0.82
+                  }
+                }
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
+}

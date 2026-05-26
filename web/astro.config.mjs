@@ -10,7 +10,6 @@ import tailwind from '@astrojs/tailwind';
 import { vueNodeTransform, astroSourceIntegration } from './scripts/inject-source-info';
 
 const srcAliasPath = fileURLToPath(new URL('./src', import.meta.url));
-const viteBase = process.env.NODE_ENV === 'production' ? './' : '/';
 
 function collectRoutes(projectRoot) {
   const srcDir = path.join(projectRoot, 'src');
@@ -140,7 +139,6 @@ export default defineConfig({
   },
   compressHTML: false,
   vite: {
-    base: viteBase,
     resolve: {
       alias: {
         '@': srcAliasPath,

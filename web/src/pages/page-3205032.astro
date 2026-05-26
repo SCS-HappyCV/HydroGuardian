@@ -1,0 +1,49 @@
+
+---
+import BaseLayout from '@/layouts/BaseLayout.astro'
+import LoginRegisterForm from '@/components/page_3205032/LoginRegisterForm.vue'
+---
+
+<BaseLayout title="登录 - 水域卫士">
+  <main class="min-h-screen w-full flex items-center justify-center bg-gradient-to-br from-background via-background to-background/80 relative overflow-hidden">
+    <!-- 背景光晕效果 -->
+    <div class="absolute inset-0 glow-background pointer-events-none opacity-50" />
+    
+    <!-- 网格背景 -->
+    <div class="absolute inset-0 pointer-events-none opacity-5">
+      <div class="absolute inset-0" style="background-image: linear-gradient(0deg, transparent 24%, rgba(255,255,255,.05) 25%, rgba(255,255,255,.05) 26%, transparent 27%, transparent 74%, rgba(255,255,255,.05) 75%, rgba(255,255,255,.05) 76%, transparent 77%, transparent), linear-gradient(90deg, transparent 24%, rgba(255,255,255,.05) 25%, rgba(255,255,255,.05) 26%, transparent 27%, transparent 74%, rgba(255,255,255,.05) 75%, rgba(255,255,255,.05) 76%, transparent 77%, transparent); background-size: 50px 50px;" />
+    </div>
+
+    <!-- 内容容器 -->
+    <div class="relative z-10 w-full max-w-md px-4">
+      <!-- 品牌区域 -->
+      <div class="text-center mb-8">
+        <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-primary/20 to-accent/20 border border-primary/30 mb-4 shadow-lg shadow-primary/10">
+          <svg class="w-8 h-8 text-primary" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm3.5-9c.83 0 1.5-.67 1.5-1.5S16.33 8 15.5 8 14 8.67 14 9.5s.67 1.5 1.5 1.5zm-7 0c.83 0 1.5-.67 1.5-1.5S9.33 8 8.5 8 7 8.67 7 9.5 7.67 11 8.5 11zm3.5 6.5c2.33 0 4.31-1.46 5.11-3.5H6.89c.8 2.04 2.78 3.5 5.11 3.5z" />
+          </svg>
+        </div>
+        <h1 class="text-3xl font-bold tracking-tight text-foreground mb-2">水域卫士</h1>
+        <p class="text-sm text-muted-foreground">智能水域风险监测与处置平台</p>
+      </div>
+
+      <!-- 登录表单组件 -->
+      <LoginRegisterForm client:load />
+
+      <!-- 底部链接 -->
+      <div class="mt-8 text-center text-xs text-muted-foreground space-y-2">
+        <p>
+          首次使用？
+          <button class="text-primary hover:text-primary-hover transition-colors font-medium" onclick="document.querySelector('[data-tab=register]')?.click()">
+            立即注册
+          </button>
+        </p>
+        <p class="flex items-center justify-center gap-2">
+          <a href="#" class="hover:text-foreground transition-colors">用户协议</a>
+          <span class="text-border">·</span>
+          <a href="#" class="hover:text-foreground transition-colors">隐私政策</a>
+        </p>
+      </div>
+    </div>
+  </main>
+</BaseLayout>

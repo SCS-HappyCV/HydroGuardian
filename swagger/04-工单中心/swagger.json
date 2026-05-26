@@ -1,0 +1,674 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "工单中心接口",
+    "version": "0.1.0",
+    "description": "对应工单中心、工单详情、工单审核、时间线与附件上传。"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8080"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Workorder"
+    }
+  ],
+  "paths": {
+    "/api/v1/workorders": {
+      "get": {
+        "tags": [
+          "Workorder"
+        ],
+        "summary": "分页查询工单列表",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            }
+          },
+          {
+            "in": "query",
+            "name": "pageSize",
+            "schema": {
+              "type": "integer",
+              "default": 20
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "todo",
+                "doing",
+                "review",
+                "closed"
+              ]
+            }
+          },
+          {
+            "in": "query",
+            "name": "keyword",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkorderPageResponse"
+                },
+                "example": {
+                  "code": "0",
+                  "message": "OK",
+                  "traceId": "trace-20260526-301",
+                  "data": {
+                    "page": 0,
+                    "pageSize": 0,
+                    "total": 0,
+                    "items": [
+                      {
+                        "id": "wo-20260526-001",
+                        "title": "北岸排水渠高风险点处置",
+                        "status": "doing",
+                        "priority": "high",
+                        "assigneeUserId": "user-002",
+                        "createdAt": "2026-05-26T10:00:00Z",
+                        "updatedAt": "2026-05-26T10:00:00Z"
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Workorder"
+        ],
+        "summary": "创建工单",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateWorkorderRequest"
+              },
+              "examples": {
+                "default": {
+                  "summary": "Default request example",
+                  "value": {
+                    "title": "string",
+                    "description": "string",
+                    "priority": "low",
+                    "relatedRiskEventId": "string",
+                    "assigneeUserId": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "创建成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkorderDetailResponse"
+                },
+                "example": {
+                  "code": "0",
+                  "message": "OK",
+                  "traceId": "trace-20260526-301",
+                  "data": {
+                    "id": "wo-20260526-001",
+                    "title": "北岸排水渠高风险点处置",
+                    "status": "doing",
+                    "priority": "high",
+                    "assigneeUserId": "user-002",
+                    "createdAt": "2026-05-26T10:00:00Z",
+                    "updatedAt": "2026-05-26T10:00:00Z",
+                    "description": "string",
+                    "relatedRiskEventId": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/workorders/{workorderId}": {
+      "get": {
+        "tags": [
+          "Workorder"
+        ],
+        "summary": "获取工单详情",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workorderId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkorderDetailResponse"
+                },
+                "example": {
+                  "code": "0",
+                  "message": "OK",
+                  "traceId": "trace-20260526-301",
+                  "data": {
+                    "id": "wo-20260526-001",
+                    "title": "北岸排水渠高风险点处置",
+                    "status": "doing",
+                    "priority": "high",
+                    "assigneeUserId": "user-002",
+                    "createdAt": "2026-05-26T10:00:00Z",
+                    "updatedAt": "2026-05-26T10:00:00Z",
+                    "description": "string",
+                    "relatedRiskEventId": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Workorder"
+        ],
+        "summary": "更新工单状态或字段",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workorderId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "todo",
+                      "doing",
+                      "review",
+                      "closed"
+                    ]
+                  },
+                  "assigneeUserId": {
+                    "type": "string"
+                  },
+                  "comment": {
+                    "type": "string"
+                  }
+                }
+              },
+              "examples": {
+                "default": {
+                  "summary": "Default request example",
+                  "value": {
+                    "status": "todo",
+                    "assigneeUserId": "string",
+                    "comment": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "更新成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiEnvelope"
+                },
+                "example": {
+                  "code": "0",
+                  "message": "OK",
+                  "traceId": "trace-20260526-301"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/workorders/{workorderId}/review": {
+      "post": {
+        "tags": [
+          "Workorder"
+        ],
+        "summary": "工单审核",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workorderId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "decision"
+                ],
+                "properties": {
+                  "decision": {
+                    "type": "string",
+                    "enum": [
+                      "approve",
+                      "reject"
+                    ]
+                  },
+                  "comment": {
+                    "type": "string"
+                  }
+                }
+              },
+              "examples": {
+                "default": {
+                  "summary": "Default request example",
+                  "value": {
+                    "decision": "approve",
+                    "comment": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "审核成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiEnvelope"
+                },
+                "example": {
+                  "code": "0",
+                  "message": "OK",
+                  "traceId": "trace-20260526-301"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/workorders/{workorderId}/timeline": {
+      "get": {
+        "tags": [
+          "Workorder"
+        ],
+        "summary": "获取工单时间线",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workorderId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TimelineResponse"
+                },
+                "example": {
+                  "code": "0",
+                  "message": "OK",
+                  "traceId": "trace-20260526-301",
+                  "data": [
+                    {
+                      "id": "tl-001",
+                      "action": "状态变更为 review",
+                      "operator": "林澄",
+                      "createdAt": "2026-05-26T10:00:00Z"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/workorders/{workorderId}/attachments": {
+      "post": {
+        "tags": [
+          "Workorder"
+        ],
+        "summary": "上传工单附件",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workorderId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "file"
+                ],
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              },
+              "examples": {
+                "default": {
+                  "summary": "Default request example",
+                  "value": {
+                    "file": "(binary)"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "上传成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttachmentUploadResponse"
+                },
+                "example": {
+                  "code": "0",
+                  "message": "OK",
+                  "traceId": "trace-20260526-301",
+                  "data": {
+                    "fileId": "file-123456",
+                    "fileName": "现场照片-1.jpg",
+                    "downloadUrl": "https://example.com/resource"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ApiEnvelope": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "example": "0"
+          },
+          "message": {
+            "type": "string",
+            "example": "OK"
+          },
+          "traceId": {
+            "type": "string",
+            "example": "trace-20260526-301"
+          }
+        }
+      },
+      "Workorder": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "wo-20260526-001"
+          },
+          "title": {
+            "type": "string",
+            "example": "北岸排水渠高风险点处置"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "todo",
+              "doing",
+              "review",
+              "closed"
+            ],
+            "example": "doing"
+          },
+          "priority": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high"
+            ],
+            "example": "high"
+          },
+          "assigneeUserId": {
+            "type": "string",
+            "example": "user-002"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "WorkorderPageResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ApiEnvelope"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "object",
+                "properties": {
+                  "page": {
+                    "type": "integer"
+                  },
+                  "pageSize": {
+                    "type": "integer"
+                  },
+                  "total": {
+                    "type": "integer"
+                  },
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/Workorder"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
+      "CreateWorkorderRequest": {
+        "type": "object",
+        "required": [
+          "title",
+          "priority"
+        ],
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "priority": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high"
+            ]
+          },
+          "relatedRiskEventId": {
+            "type": "string"
+          },
+          "assigneeUserId": {
+            "type": "string"
+          }
+        }
+      },
+      "WorkorderDetailResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ApiEnvelope"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/Workorder"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "description": {
+                        "type": "string"
+                      },
+                      "relatedRiskEventId": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "TimelineItem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "tl-001"
+          },
+          "action": {
+            "type": "string",
+            "example": "状态变更为 review"
+          },
+          "operator": {
+            "type": "string",
+            "example": "林澄"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "TimelineResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ApiEnvelope"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/TimelineItem"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "AttachmentUploadResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ApiEnvelope"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "object",
+                "properties": {
+                  "fileId": {
+                    "type": "string",
+                    "example": "file-123456"
+                  },
+                  "fileName": {
+                    "type": "string",
+                    "example": "现场照片-1.jpg"
+                  },
+                  "downloadUrl": {
+                    "type": "string",
+                    "format": "uri"
+                  }
+                }
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
+}
