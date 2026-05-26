@@ -1,0 +1,210 @@
+openapi: 3.0.3
+info:
+  title: 公共基础数据接口
+  version: 0.1.0
+  description: 前端通用下拉与关联实体数据（区域/模板/用户/角色/项目/数据集/样本）。
+servers:
+  - url: http://localhost:8080
+tags:
+  - name: Common
+    description: 公共基础数据
+paths:
+  /api/v1/zones:
+    get:
+      tags: [Common]
+      summary: 获取区域列表
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ZoneListResponse'
+
+  /api/v1/task-templates:
+    get:
+      tags: [Common]
+      summary: 获取任务模板列表
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskTemplateListResponse'
+
+  /api/v1/samples:
+    get:
+      tags: [Common]
+      summary: 获取样本数据列表
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SampleListResponse'
+
+  /api/v1/users:
+    get:
+      tags: [Common]
+      summary: 获取用户列表（基础信息）
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserListResponse'
+
+  /api/v1/roles:
+    get:
+      tags: [Common]
+      summary: 获取角色列表
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleListResponse'
+
+  /api/v1/projects:
+    get:
+      tags: [Common]
+      summary: 获取项目列表
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectListResponse'
+
+  /api/v1/datasets:
+    get:
+      tags: [Common]
+      summary: 获取数据集列表
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DatasetListResponse'
+
+components:
+  schemas:
+    ApiEnvelope:
+      type: object
+      properties:
+        code:
+          type: string
+          example: "0"
+        message:
+          type: string
+          example: OK
+        traceId:
+          type: string
+          example: 1a2b3c4d5e6f7g8h
+
+    Zone:
+      type: object
+      properties:
+        id: { type: string, example: zone-01 }
+        name: { type: string, example: 滨海泵站片区 }
+    ZoneListResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiEnvelope'
+        - type: object
+          properties:
+            data:
+              type: array
+              items: { $ref: '#/components/schemas/Zone' }
+
+    TaskTemplate:
+      type: object
+      properties:
+        id: { type: string, example: tpl-001 }
+        name: { type: string, example: 雨后风险巡查模板 }
+        defaultZoneId: { type: string, example: zone-01 }
+        defaultPriority: { type: string, enum: [low, medium, high], example: medium }
+    TaskTemplateListResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiEnvelope'
+        - type: object
+          properties:
+            data:
+              type: array
+              items: { $ref: '#/components/schemas/TaskTemplate' }
+
+    Sample:
+      type: object
+      properties:
+        id: { type: string, example: sample-001 }
+        name: { type: string, example: 夜巡样本-滨海片区 }
+    SampleListResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiEnvelope'
+        - type: object
+          properties:
+            data:
+              type: array
+              items: { $ref: '#/components/schemas/Sample' }
+
+    User:
+      type: object
+      properties:
+        id: { type: string, example: user-001 }
+        name: { type: string, example: 林澄 }
+        roleId: { type: string, example: role-001 }
+    UserListResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiEnvelope'
+        - type: object
+          properties:
+            data:
+              type: array
+              items: { $ref: '#/components/schemas/User' }
+
+    Role:
+      type: object
+      properties:
+        id: { type: string, example: role-001 }
+        name: { type: string, example: 系统管理员 }
+    RoleListResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiEnvelope'
+        - type: object
+          properties:
+            data:
+              type: array
+              items: { $ref: '#/components/schemas/Role' }
+
+    Project:
+      type: object
+      properties:
+        id: { type: string, example: proj-001 }
+        name: { type: string, example: 滨海防汛项目 }
+    ProjectListResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiEnvelope'
+        - type: object
+          properties:
+            data:
+              type: array
+              items: { $ref: '#/components/schemas/Project' }
+
+    Dataset:
+      type: object
+      properties:
+        id: { type: string, example: dataset-001 }
+        name: { type: string, example: 2026-05 巡检影像集 }
+    DatasetListResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiEnvelope'
+        - type: object
+          properties:
+            data:
+              type: array
+              items: { $ref: '#/components/schemas/Dataset' }
