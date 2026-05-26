@@ -1,0 +1,27 @@
+
+---
+import DetailLayout from '@/layouts/DetailLayout.astro'
+import PageHeader from '@/components/common/PageHeader.vue'
+import ComparisonContent from '@/components/history-contrast/ComparisonContent.vue'
+
+const title = '历史差分对比'
+const breadcrumb = [
+  { label: '全局总览', href: './dashboard.html' },
+  { label: '历史回溯', href: './history.html' },
+  { label: '差分对比' }
+]
+---
+
+<DetailLayout title={title}>
+  <div class="flex flex-col min-h-screen bg-background">
+    <PageHeader 
+      title={title}
+      subtitle="选择两次任务结果进行差分对比，快速识别新增、消失或变化的风险点"
+      breadcrumb={breadcrumb}
+    />
+    
+    <div class="flex-1 overflow-y-auto min-h-0">
+      <ComparisonContent client:load />
+    </div>
+  </div>
+</DetailLayout>

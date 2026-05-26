@@ -17,3 +17,19 @@ backend/services/agent-service/src/*_pb2.py
 backend/services/agent-service/src/*_pb2_grpc.py
 backend/services/agent-service/src/__pycache__/
 backend/services/agent-service/__pycache__/
+
+# Frontend (web)
+web/node_modules/
+web/dist/
+web/.astro/
+web/.vite/
+web/coverage/
+web/playwright-report/
+web/test-results/
+web/src/auto-imports.d.ts
+web/pnpm-debug.log*
+
+# Frontend local env
+web/.env
+web/.env.local
+web/.env.*.local

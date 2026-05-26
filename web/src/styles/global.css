@@ -1,0 +1,281 @@
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Background & Surface */
+    --background: 220 40% 8%;
+    --foreground: 210 15% 95%;
+    --card: 220 35% 12%;
+    --card-foreground: 210 12% 92%;
+    --popover: 220 40% 10%;
+    --popover-foreground: 210 15% 95%;
+
+    /* Brand */
+    --primary: 210 85% 60%;
+    --primary-foreground: 220 10% 98%;
+    --secondary: 240 15% 45%;
+    --secondary-foreground: 240 5% 96%;
+    --accent: 180 70% 55%;
+    --accent-foreground: 180 10% 98%;
+
+    /* Muted */
+    --muted: 220 20% 20%;
+    --muted-foreground: 220 10% 65%;
+
+    /* State & UI */
+    --destructive: 5 75% 55%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 220 25% 18%;
+    --input: 220 25% 18%;
+    --ring: 210 85% 60%;
+    --radius: 0.75rem;
+
+    /* Hover states */
+    --primary-hover: 210 85% 68%;
+    --accent-hover: 180 70% 63%;
+    --muted-hover: 220 20% 26%;
+    --secondary-hover: 240 15% 52%;
+
+    /* State colors */
+    --success: 170 60% 50%;
+    --warning: 40 90% 60%;
+
+    /* Layout */
+    --header-height: 60px;
+
+    /* Sidebar */
+    --sidebar-background: 220 38% 10%;
+    --sidebar-foreground: 210 12% 90%;
+    --sidebar-primary: 210 85% 60%;
+    --sidebar-primary-foreground: 220 10% 98%;
+    --sidebar-accent: 220 25% 16%;
+    --sidebar-accent-foreground: 210 12% 92%;
+    --sidebar-border: 220 25% 18%;
+    --sidebar-ring: 210 85% 60%;
+
+    /* Shadows (glow-based) */
+    --shadow-soft: inset 0 1px 0 0 rgba(255, 255, 255, 0.05);
+    --shadow-card: inset 0 1px 0 0 rgba(255, 255, 255, 0.05), 0 0 0 1px rgba(255, 255, 255, 0.05);
+
+    /* Gradients */
+    --gradient-brand: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent)));
+    --gradient-glow: radial-gradient(ellipse at top, hsl(210 85% 30% / 0.15), transparent 50%);
+
+    /* Font stack */
+    --font-sans: "PingFang SC", "Helvetica Neue", system-ui, -apple-system, sans-serif;
+  }
+
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: var(--font-sans);
+  }
+
+  html {
+    overscroll-behavior: none;
+  }
+}
+
+@layer components {
+  /* === REQUIRED === */
+  .text-page-title {
+    @apply text-3xl font-semibold tracking-tight text-foreground;
+  }
+
+  .text-body {
+    @apply text-sm leading-relaxed text-muted-foreground;
+  }
+
+  .page-body {
+    @apply p-6;
+  }
+
+  .card-padding {
+    @apply p-4;
+  }
+
+  .surface-base {
+    @apply bg-card/40 border border-white/10 rounded-[--radius] backdrop-blur-xl;
+    box-shadow: var(--shadow-card);
+  }
+
+  .surface-raised {
+    @apply bg-card/60 border border-white/10 rounded-[--radius] backdrop-blur-xl;
+    box-shadow: var(--shadow-card);
+  }
+
+  /* === RECOMMENDED === */
+  .text-section-title {
+    @apply text-xl font-semibold text-foreground;
+  }
+
+  .text-item-title {
+    @apply text-base font-medium text-foreground;
+  }
+
+  .text-caption {
+    @apply text-xs text-muted-foreground;
+  }
+
+  .text-label {
+    @apply text-sm font-medium text-card-foreground;
+  }
+
+  .page-container {
+    @apply max-w-screen-2xl mx-auto;
+  }
+
+  .section-spacing {
+    @apply space-y-5;
+  }
+
+  .interactive {
+    @apply transition-colors duration-150 cursor-pointer;
+  }
+
+  .page-section-header {
+    @apply flex items-center justify-between mb-4;
+  }
+
+  .filter-bar {
+    @apply flex flex-wrap items-center gap-3 mb-4;
+  }
+
+  .empty-state {
+    @apply flex flex-col items-center justify-center text-center text-muted-foreground py-12;
+  }
+
+  /* === APP-SPECIFIC === */
+  .status-badge-queued {
+    @apply bg-secondary/20 text-secondary-foreground border-secondary/30;
+  }
+
+  .status-badge-running {
+    @apply bg-primary/20 text-primary-foreground border-primary/30;
+  }
+
+  .status-badge-success {
+    background-color: hsl(var(--success) / 0.2);
+    color: hsl(var(--success));
+    border-color: hsl(var(--success) / 0.3);
+  }
+
+  .status-badge-failed {
+    @apply bg-destructive/20 text-destructive-foreground border-destructive/30;
+  }
+
+  .status-badge-high {
+    @apply bg-destructive/20 text-destructive-foreground border-destructive/30;
+  }
+
+  .status-badge-medium {
+    background-color: hsl(var(--warning) / 0.2);
+    color: hsl(var(--warning));
+    border-color: hsl(var(--warning) / 0.3);
+  }
+
+  .status-badge-low {
+    background-color: hsl(var(--success) / 0.2);
+    color: hsl(var(--success));
+    border-color: hsl(var(--success) / 0.3);
+  }
+
+  .status-badge-review-required {
+    @apply bg-accent/20 text-accent-foreground border-accent/30;
+  }
+
+  .status-badge-todo {
+    @apply bg-muted/40 text-muted-foreground border-muted/50;
+  }
+
+  .status-badge-doing {
+    @apply bg-primary/20 text-primary-foreground border-primary/30;
+  }
+
+  .status-badge-review {
+    background-color: hsl(var(--warning) / 0.2);
+    color: hsl(var(--warning));
+    border-color: hsl(var(--warning) / 0.3);
+  }
+
+  .status-badge-closed {
+    background-color: hsl(var(--success) / 0.2);
+    color: hsl(var(--success));
+    border-color: hsl(var(--success) / 0.3);
+  }
+
+  .nav-item-active {
+    background-color: hsl(var(--sidebar-accent));
+    color: hsl(var(--sidebar-primary));
+    font-weight: 500;
+  }
+
+  .stat-card {
+    @apply surface-base hover:surface-raised interactive;
+  }
+
+  .glow-background {
+    background: var(--gradient-glow);
+  }
+
+  .table-row-hover {
+    @apply hover:[background-color:hsl(var(--muted-hover))] interactive;
+  }
+
+  .scrollable-content {
+    @apply flex-1 overflow-y-auto min-h-0;
+  }
+
+  .log-entry {
+    @apply text-xs font-mono leading-relaxed border-l-2 border-transparent pl-3;
+  }
+
+  .log-entry-info {
+    @apply border-l-primary/50 text-card-foreground;
+  }
+
+  .log-entry-error {
+    @apply border-l-destructive text-destructive;
+  }
+
+  .log-entry-warning {
+    border-left-color: hsl(var(--warning));
+    color: hsl(var(--warning));
+  }
+
+  .log-entry-success {
+    border-left-color: hsl(var(--success));
+    color: hsl(var(--success));
+  }
+
+  .risk-card {
+    @apply surface-base p-3 space-y-2;
+  }
+
+  .risk-card-high {
+    @apply border-destructive/50;
+  }
+
+  .risk-card-medium {
+    border-color: hsl(var(--warning) / 0.5);
+  }
+
+  .risk-card-low {
+    border-color: hsl(var(--success) / 0.5);
+  }
+
+  .form-section {
+    @apply space-y-4 surface-base card-padding;
+  }
+
+  .chart-container {
+    @apply surface-base card-padding min-h-[300px] flex items-center justify-center;
+  }
+}
+    

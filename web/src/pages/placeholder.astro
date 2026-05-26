@@ -1,0 +1,28 @@
+
+---
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import { FileQuestion } from 'lucide-vue-next';
+---
+
+<BaseLayout title="页面建设中 - 水域卫士">
+  <div class="h-screen flex items-center justify-center px-6 glow-background">
+    <div class="max-w-md w-full text-center space-y-6">
+      <div class="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-primary/10 border border-primary/20">
+        <FileQuestion :size="40" class="text-primary" client:load />
+      </div>
+      <div class="space-y-2">
+        <h1 class="text-page-title">页面建设中</h1>
+        <p class="text-body text-muted-foreground">
+          该功能模块正在积极开发中,敬请期待。如需帮助,请联系系统管理员。
+        </p>
+      </div>
+      <a
+        href="./dashboard.html"
+        class="inline-flex items-center justify-center h-10 px-6 rounded-lg bg-primary text-primary-foreground font-medium hover:[background-color:hsl(var(--primary-hover))] transition-colors"
+      >
+        返回首页
+      </a>
+    </div>
+  </div>
+</BaseLayout>
+    

@@ -1,0 +1,9 @@
+
+---
+import StandardLayout from '@/layouts/StandardLayout.astro'
+import WorkorderCenterContent from '@/components/workorder_center/WorkorderCenterContent.vue'
+---
+
+<StandardLayout title="工单处理中心">
+  <WorkorderCenterContent client:load currentPath={Astro.url.pathname} searchParams={Astro.url.searchParams} />
+</StandardLayout>

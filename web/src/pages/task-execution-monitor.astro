@@ -1,0 +1,9 @@
+
+---
+import DetailLayout from '@/layouts/DetailLayout.astro'
+import TaskExecutionMonitor from '@/components/task_execution_monitor/TaskExecutionMonitor.vue'
+---
+
+<DetailLayout title="任务执行监控">
+  <TaskExecutionMonitor client:load />
+</DetailLayout>
