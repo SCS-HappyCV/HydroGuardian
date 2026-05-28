@@ -1,6 +1,5 @@
-
 <script setup lang="ts">
-import { ref, reactive, computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useForm } from 'vee-validate'
 import { toTypedSchema } from '@vee-validate/zod'
 import { z } from 'zod'
@@ -11,47 +10,41 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Checkbox } from '@/components/ui/checkbox'
 import SafeIcon from '@/components/common/SafeIcon.vue'
 import { toast } from 'vue-sonner'
-import { cn } from '@/lib/utils'
 import { setAuthSession } from '@/lib/auth'
+import { authApi } from '@/lib/auth-api'
 
-const isClient = ref(true)
-const activeMode = ref<'login' | 'register' | null>(null)
+type AuthTab = 'login' | 'register'
+
+const activeTab = ref<AuthTab>('login')
 const showPassword = ref(false)
 const showConfirmPassword = ref(false)
 const isSubmitting = ref(false)
-
-onMounted(() => {
-  isClient.value = false
-  requestAnimationFrame(() => {
-    isClient.value = true
-    
-    const params = new URLSearchParams(window.location.search)
-    const redirectUrl = params.get('redirectUrl')
-    if (redirectUrl) {
-      sessionStorage.setItem('auth_redirect_url', redirectUrl)
-    }
-  })
-})
+const isHydrated = ref(false)
+const rememberedEmailKey = 'remembered_login_email'
 
 const loginSchema = toTypedSchema(
   z.object({
     loginEmail: z.string().email('请输入有效的邮箱地址'),
-    loginPassword: z.string().min(6, '密码至少6个字符'),
-    rememberMe: z.boolean().default(false)
-  })
+    loginPassword: z.string().min(6, '密码至少 6 个字符'),
+    rememberMe: z.boolean().default(false),
+  }),
 )
 
 const registerSchema = toTypedSchema(
   z.object({
-    registerName: z.string().min(2, '用户名至少2个字符').max(20, '用户名最多20个字符'),
+    registerName: z.string().min(2, '用户名至少 2 个字符').max(20, '用户名最多 20 个字符'),
     registerEmail: z.string().email('请输入有效的邮箱地址'),
-    registerPassword: z.string().min(8, '密码至少8个字符').regex(/[A-Z]/, '密码必须包含大写字母').regex(/[0-9]/, '密码必须包含数字'),
+    registerPassword: z
+      .string()
+      .min(8, '密码至少 8 个字符')
+      .regex(/[A-Z]/, '密码必须包含大写字母')
+      .regex(/[0-9]/, '密码必须包含数字'),
     registerConfirm: z.string(),
-    agreeTerms: z.boolean().refine((val) => val === true, '请勾选同意服务条款')
+    agreeTerms: z.boolean().refine((val) => val === true, '请勾选同意服务条款'),
   }).refine((data) => data.registerPassword === data.registerConfirm, {
     message: '两次输入的密码不一致',
-    path: ['registerConfirm']
-  })
+    path: ['registerConfirm'],
+  }),
 )
 
 const loginForm = useForm({
@@ -59,12 +52,9 @@ const loginForm = useForm({
   initialValues: {
     loginEmail: '',
     loginPassword: '',
-    rememberMe: false
-  }
+    rememberMe: false,
+  },
 })
-
-const [loginEmail, loginEmailProps] = loginForm.defineField('loginEmail')
-const [loginPassword, loginPasswordProps] = loginForm.defineField('loginPassword')
 
 const registerForm = useForm({
   validationSchema: registerSchema,
@@ -73,50 +63,83 @@ const registerForm = useForm({
     registerEmail: '',
     registerPassword: '',
     registerConfirm: '',
-    agreeTerms: false
-  }
+    agreeTerms: false,
+  },
 })
 
+const [loginEmail, loginEmailProps] = loginForm.defineField('loginEmail')
+const [loginPassword, loginPasswordProps] = loginForm.defineField('loginPassword')
 const [registerName, registerNameProps] = registerForm.defineField('registerName')
 const [registerEmail, registerEmailProps] = registerForm.defineField('registerEmail')
 const [registerPassword, registerPasswordProps] = registerForm.defineField('registerPassword')
 const [registerConfirm, registerConfirmProps] = registerForm.defineField('registerConfirm')
 
+const rememberMe = computed<boolean>({
+  get: () => Boolean(loginForm.values.rememberMe),
+  set: (value) => loginForm.setFieldValue('rememberMe', value),
+})
+
+const agreeTerms = computed<boolean>({
+  get: () => Boolean(registerForm.values.agreeTerms),
+  set: (value) => registerForm.setFieldValue('agreeTerms', value),
+})
+
+const handleTabChange = (value: string | number) => {
+  const nextTab = value as AuthTab
+  activeTab.value = nextTab
+
+  if (nextTab === 'register') {
+    registerForm.resetForm({
+      values: {
+        registerName: '',
+        registerEmail: '',
+        registerPassword: '',
+        registerConfirm: '',
+        agreeTerms: false,
+      },
+    })
+  }
+}
+
 const handleLoginSubmit = loginForm.handleSubmit(async (values) => {
   isSubmitting.value = true
   try {
-    await new Promise(resolve => setTimeout(resolve, 1500))
-    
-    const mockToken = `token_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-    localStorage.setItem('auth_token', mockToken)
-    localStorage.setItem('auth_user', JSON.stringify({
+    const payload = await authApi.login({
+      email: values.loginEmail.trim(),
+      password: values.loginPassword,
+      rememberMe: values.rememberMe,
+    })
+
+    const authUser = payload.data?.user ?? {
       id: 'user-001',
       name: '系统管理员',
-      email: values.loginEmail,
-      role: 'admin'
-    }))
-    
-    toast.success('登录成功！正在跳转...')
-    
+      email: values.loginEmail.trim(),
+      role: 'admin',
+      department: '安全运营部',
+      avatarUrl: 'https://spark-builder.s3.cn-north-1.amazonaws.com.cn/image/2026/5/25/77fefb85-a38b-48f8-8e7d-e7a6df12426d.png',
+    }
+
     setAuthSession({
-      token: mockToken,
-      user: {
-        id: 'user-001',
-        name: '系统管理员',
-        email: values.loginEmail,
-        role: 'admin',
-        department: '安全运营部',
-        avatarUrl: 'https://spark-builder.s3.cn-north-1.amazonaws.com.cn/image/2026/5/25/77fefb85-a38b-48f8-8e7d-e7a6df12426d.png'
-      }
+      token: payload.data?.token || `token_${Date.now()}`,
+      user: authUser,
     })
+
+    if (values.rememberMe) {
+      localStorage.setItem(rememberedEmailKey, values.loginEmail.trim())
+    } else {
+      localStorage.removeItem(rememberedEmailKey)
+    }
+
+    toast.success('登录成功，正在跳转...')
 
     setTimeout(() => {
       const redirectUrl = sessionStorage.getItem('auth_redirect_url') || './dashboard.html'
       sessionStorage.removeItem('auth_redirect_url')
       window.location.href = redirectUrl
-    }, 800)
+    }, 600)
   } catch (error) {
-    toast.error('登录失败，请重试')
+    const message = error instanceof Error ? error.message : '登录失败，请重试'
+    toast.error(message)
   } finally {
     isSubmitting.value = false
   }
@@ -125,15 +148,30 @@ const handleLoginSubmit = loginForm.handleSubmit(async (values) => {
 const handleRegisterSubmit = registerForm.handleSubmit(async (values) => {
   isSubmitting.value = true
   try {
-    await new Promise(resolve => setTimeout(resolve, 1500))
-    
-    toast.success('注册成功！请登录')
-    
-    registerForm.resetForm()
-    activeMode.value = 'login'
-    loginForm.setFieldValue('loginEmail', values.registerEmail)
+    await authApi.register({
+      name: values.registerName.trim(),
+      email: values.registerEmail.trim(),
+      password: values.registerPassword,
+      confirmPassword: values.registerConfirm,
+      agreeTerms: values.agreeTerms,
+    })
+
+    toast.success('注册成功，请登录')
+
+    registerForm.resetForm({
+      values: {
+        registerName: '',
+        registerEmail: '',
+        registerPassword: '',
+        registerConfirm: '',
+        agreeTerms: false,
+      },
+    })
+    activeTab.value = 'login'
+    loginForm.setFieldValue('loginEmail', values.registerEmail.trim())
   } catch (error) {
-    toast.error('注册失败，请重试')
+    const message = error instanceof Error ? error.message : '注册失败，请重试'
+    toast.error(message)
   } finally {
     isSubmitting.value = false
   }
@@ -150,30 +188,46 @@ const togglePasswordVisibility = () => {
 const toggleConfirmPasswordVisibility = () => {
   showConfirmPassword.value = !showConfirmPassword.value
 }
+
+onMounted(() => {
+  const params = new URLSearchParams(window.location.search)
+  const redirectUrl = params.get('redirectUrl')
+  if (redirectUrl) {
+    sessionStorage.setItem('auth_redirect_url', redirectUrl)
+  }
+
+  const rememberedEmail = localStorage.getItem(rememberedEmailKey)
+  if (rememberedEmail) {
+    loginForm.setFieldValue('loginEmail', rememberedEmail)
+    loginForm.setFieldValue('rememberMe', true)
+  }
+
+  isHydrated.value = true
+})
 </script>
 
 <template>
-  <div v-if="isClient" class="surface-raised rounded-2xl overflow-hidden">
-    <Tabs default-value="login" :model-value="activeMode || undefined" @update:model-value="(val) => { activeMode = val as 'login' | 'register'; if (val === 'register') registerForm.resetForm(); else loginForm.resetForm() }" class="w-full">
+  <div v-if="isHydrated" class="surface-raised rounded-2xl overflow-hidden">
+    <Tabs :model-value="activeTab" @update:model-value="handleTabChange" class="w-full">
       <TabsList class="w-full rounded-none border-b border-border bg-transparent p-0 h-auto">
-        <TabsTrigger 
-          value="login" 
+        <TabsTrigger
+          value="login"
+          data-tab="login"
           class="flex-1 rounded-none border-b-2 border-transparent py-4 text-sm font-medium transition-all data-[state=active]:border-primary data-[state=active]:text-foreground data-[state=inactive]:text-muted-foreground"
         >
           登录
         </TabsTrigger>
-        <TabsTrigger 
-          value="register" 
+        <TabsTrigger
+          value="register"
+          data-tab="register"
           class="flex-1 rounded-none border-b-2 border-transparent py-4 text-sm font-medium transition-all data-[state=active]:border-primary data-[state=active]:text-foreground data-[state=inactive]:text-muted-foreground"
         >
           注册
         </TabsTrigger>
       </TabsList>
 
-      <!-- 登录标签页 -->
       <TabsContent value="login" class="card-padding space-y-4">
         <form @submit="handleLoginSubmit" class="space-y-4">
-          <!-- 邮箱字段 -->
           <div class="space-y-2">
             <Label for="loginEmail" class="text-label">邮箱地址</Label>
             <div class="relative">
@@ -192,7 +246,6 @@ const toggleConfirmPasswordVisibility = () => {
             </p>
           </div>
 
-          <!-- 密码字段 -->
           <div class="space-y-2">
             <Label for="loginPassword" class="text-label">密码</Label>
             <div class="relative">
@@ -219,8 +272,8 @@ const toggleConfirmPasswordVisibility = () => {
 
             <div class="flex items-center justify-between mt-2">
               <div class="flex items-center space-x-2">
-                <Checkbox id="rememberMe" :checked="loginForm.values.rememberMe" @update:checked="(val) => loginForm.setFieldValue('rememberMe', val as boolean)" />
-                <Label for="rememberMe" class="text-xs text-muted-foreground font-normal cursor-pointer">记住我</Label>
+                <Checkbox id="rememberMe" v-model:checked="rememberMe" />
+                <Label for="rememberMe" class="text-xs text-muted-foreground font-normal cursor-pointer select-none">记住我</Label>
               </div>
               <button
                 type="button"
@@ -232,7 +285,6 @@ const toggleConfirmPasswordVisibility = () => {
             </div>
           </div>
 
-          <!-- 登录按钮 -->
           <Button
             type="submit"
             :disabled="isSubmitting"
@@ -243,33 +295,29 @@ const toggleConfirmPasswordVisibility = () => {
           </Button>
         </form>
 
-        <!-- 分割线 -->
         <div class="relative my-4">
           <div class="absolute inset-0 flex items-center">
             <div class="w-full border-t border-border/50" />
           </div>
           <div class="relative flex justify-center text-xs">
-            <span class="px-2 bg-card text-muted-foreground">或</span>
+            <span class="px-2 bg-card text-muted-foreground">或者</span>
           </div>
         </div>
 
-        <!-- 第三方登录 -->
         <div class="grid grid-cols-2 gap-3">
-          <Button variant="outline" class="h-10 border-border/50 hover:bg-muted/50 transition-colors">
+          <Button type="button" variant="outline" class="h-10 border-border/50 hover:bg-muted/50 transition-colors">
             <SafeIcon name="Github" :size="16" class="mr-2" />
             GitHub
           </Button>
-          <Button variant="outline" class="h-10 border-border/50 hover:bg-muted/50 transition-colors">
+          <Button type="button" variant="outline" class="h-10 border-border/50 hover:bg-muted/50 transition-colors">
             <SafeIcon name="Gitlab" :size="16" class="mr-2" />
             GitLab
           </Button>
         </div>
       </TabsContent>
 
-      <!-- 注册标签页 -->
       <TabsContent value="register" class="card-padding space-y-4">
         <form @submit="handleRegisterSubmit" class="space-y-4">
-          <!-- 用户名字段 -->
           <div class="space-y-2">
             <Label for="registerName" class="text-label">用户名</Label>
             <div class="relative">
@@ -288,7 +336,6 @@ const toggleConfirmPasswordVisibility = () => {
             </p>
           </div>
 
-          <!-- 邮箱字段 -->
           <div class="space-y-2">
             <Label for="registerEmail" class="text-label">邮箱地址</Label>
             <div class="relative">
@@ -307,7 +354,6 @@ const toggleConfirmPasswordVisibility = () => {
             </p>
           </div>
 
-          <!-- 密码字段 -->
           <div class="space-y-2">
             <Label for="registerPassword" class="text-label">密码</Label>
             <div class="relative">
@@ -317,7 +363,7 @@ const toggleConfirmPasswordVisibility = () => {
                 v-model="registerPassword"
                 v-bind="registerPasswordProps"
                 :type="showPassword ? 'text' : 'password'"
-                placeholder="至少8个字符，需包含大写字母和数字"
+                placeholder="至少 8 位，且包含大写字母和数字"
                 class="pl-9 pr-9 bg-muted/30 border-border focus:bg-muted/50 transition-colors"
               />
               <button
@@ -333,7 +379,6 @@ const toggleConfirmPasswordVisibility = () => {
             </p>
           </div>
 
-          <!-- 确认密码字段 -->
           <div class="space-y-2">
             <Label for="registerConfirm" class="text-label">确认密码</Label>
             <div class="relative">
@@ -361,9 +406,12 @@ const toggleConfirmPasswordVisibility = () => {
 
           <div class="space-y-2">
             <div class="flex items-center space-x-2">
-              <Checkbox id="agreeTerms" :checked="registerForm.values.agreeTerms" @update:checked="(val) => registerForm.setFieldValue('agreeTerms', val as boolean)" />
-              <Label for="agreeTerms" class="text-xs text-muted-foreground font-normal cursor-pointer">
-                我已阅读并同意 <a href="#" class="text-primary hover:text-primary-hover transition-colors" @click.stop>用户协议</a> 和 <a href="#" class="text-primary hover:text-primary-hover transition-colors" @click.stop>隐私政策</a>
+              <Checkbox id="agreeTerms" v-model:checked="agreeTerms" />
+              <Label for="agreeTerms" class="text-xs text-muted-foreground font-normal cursor-pointer select-none">
+                我已阅读并同意
+                <a href="#" class="text-primary hover:text-primary-hover transition-colors" @click.stop>用户协议</a>
+                和
+                <a href="#" class="text-primary hover:text-primary-hover transition-colors" @click.stop>隐私政策</a>
               </Label>
             </div>
             <p v-if="registerForm.errors.agreeTerms" class="text-xs text-destructive">
@@ -371,7 +419,6 @@ const toggleConfirmPasswordVisibility = () => {
             </p>
           </div>
 
-          <!-- 注册按钮 -->
           <Button
             type="submit"
             :disabled="isSubmitting"
@@ -381,7 +428,6 @@ const toggleConfirmPasswordVisibility = () => {
             {{ isSubmitting ? '注册中...' : '注册' }}
           </Button>
         </form>
-
       </TabsContent>
     </Tabs>
   </div>

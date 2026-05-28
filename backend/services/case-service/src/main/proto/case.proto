@@ -9,6 +9,8 @@ option java_outer_classname = "CaseProto";
 service CaseRpcService {
   rpc CreateCase (CreateCaseRequest) returns (CaseReply);
   rpc GetCase (GetCaseRequest) returns (CaseReply);
+  rpc RegisterUser (RegisterUserRequest) returns (RegisterUserReply);
+  rpc LoginUser (LoginUserRequest) returns (LoginUserReply);
 }
 
 message CreateCaseRequest {
@@ -36,3 +38,37 @@ message CaseReply {
   string created_at = 9;
 }
 
+message RegisterUserRequest {
+  string name = 1;
+  string email = 2;
+  string password = 3;
+  string confirm_password = 4;
+  bool agree_terms = 5;
+}
+
+message RegisterUserReply {
+  string user_id = 1;
+  string email = 2;
+  string created_at = 3;
+}
+
+message LoginUserRequest {
+  string email = 1;
+  string password = 2;
+  bool remember_me = 3;
+}
+
+message AuthUser {
+  string id = 1;
+  string name = 2;
+  string email = 3;
+  string role = 4;
+  string department = 5;
+  string avatar_url = 6;
+}
+
+message LoginUserReply {
+  string token_subject = 1;
+  int64 expires_in = 2;
+  AuthUser user = 3;
+}

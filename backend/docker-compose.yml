@@ -87,11 +87,12 @@ services:
     image: maven:3.9.9-eclipse-temurin-21
     container_name: hydro-case-service
     working_dir: /workspace
-    command: ["mvn", "-DskipTests", "spring-boot:run"]
+    command: ["sh", "-lc", "mkdir -p target && rm -rf target/generated-sources target/classes && mvn -e -DskipTests compile spring-boot:run"]
     ports:
       - "9092:9092"
     volumes:
       - ./services/case-service:/workspace
+      - case_service_target:/workspace/target
       - maven_repo:/root/.m2
     develop:
       watch:
@@ -205,9 +206,10 @@ services:
     image: maven:3.9.9-eclipse-temurin-21
     container_name: hydro-api-gateway
     working_dir: /workspace
-    command: ["mvn", "-DskipTests", "spring-boot:run"]
+    command: ["sh", "-lc", "mkdir -p target && rm -rf target/generated-sources target/classes && mvn -e -DskipTests compile spring-boot:run"]
     volumes:
       - ./services/api-gateway:/workspace
+      - api_gateway_target:/workspace/target
       - maven_repo:/root/.m2
     develop:
       watch:
@@ -223,6 +225,9 @@ services:
       DB_USER: hydro
       DB_PASSWORD: hydro123
       NACOS_SERVER_ADDR: nacos:8848
+      NACOS_NAMESPACE: public
+      NACOS_GROUP: DEFAULT_GROUP
+      NACOS_CLUSTER: DEFAULT
       AGENT_SERVICE_NAME: agent-service
     ports:
       - "8080:8080"
@@ -236,3 +241,5 @@ services:
 
 volumes:
   maven_repo:
+  case_service_target:
+  api_gateway_target:

@@ -1,13 +1,7 @@
 import { computed, ref } from 'vue'
+import type { AuthUser } from '@/lib/api-contracts'
 
-export interface AuthUser {
-  id: string
-  name: string
-  email: string
-  role?: string
-  department?: string
-  avatarUrl?: string
-}
+export type { AuthUser }
 
 interface AuthSession {
   token: string

@@ -24,6 +24,15 @@ docker pull docker.m.daocloud.io/minio/minio:latest
 docker tag docker.m.daocloud.io/minio/minio:latest minio/minio:latest
 ```
 
+## MySQL 初始化说明
+
+`./data/mysql/init` 目录下的 SQL 只会在 MySQL 数据目录首次初始化时执行一次。
+如果容器已经启动过，后续再新增 `001_init.sql`、`002_add_app_user.sql` 这类脚本，不会自动补执行到现有数据库。
+
+如果只是补 `app_user` 表，建议直接手动执行 SQL：
+
+如果需要让 `init` 目录里的脚本重新执行，需要删除当前 MySQL 数据卷或清空 `./data/mysql/data` 后重新初始化。
+
 ## 调试
 
 - API Gateway: `http://localhost:8080`

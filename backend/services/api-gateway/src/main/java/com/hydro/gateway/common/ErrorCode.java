@@ -3,7 +3,10 @@ package com.hydro.gateway.common;
 public enum ErrorCode {
     SUCCESS("0", "OK", 200),
     BAD_REQUEST("40000", "Bad Request", 400),
+    UNAUTHORIZED("40100", "Unauthorized", 401),
+    FORBIDDEN("40300", "Forbidden", 403),
     NOT_FOUND("40400", "Not Found", 404),
+    CONFLICT("40900", "Conflict", 409),
     UPSTREAM_ERROR("50200", "Upstream Service Error", 502),
     INTERNAL_ERROR("50000", "Internal Server Error", 500);
 

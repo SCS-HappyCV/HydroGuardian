@@ -45,6 +45,10 @@
       "description": "用户与角色权限"
     },
     {
+      "name": "Auth",
+      "description": "登录、注册与会话"
+    },
+    {
       "name": "Setting",
       "description": "系统设置"
     },
@@ -59,6 +63,321 @@
     }
   ],
   "paths": {
+    "/api/v1/auth/login": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "用户登录",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              },
+              "example": {
+                "email": "admin@hydroguardian.cn",
+                "password": "12345678",
+                "rememberMe": true
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "??",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginResponse"
+                },
+                "example": {
+                  "code": "0",
+                  "message": "OK",
+                  "traceId": "trace-20260526-auth-001",
+                  "data": {
+                    "token": "jwt-token-string",
+                    "tokenType": "Bearer",
+                    "expiresIn": 7200,
+                    "user": {
+                      "id": "user-001",
+                      "name": "系统管理员",
+                      "email": "admin@hydroguardian.cn",
+                      "role": "admin",
+                      "department": "安全运营部",
+                      "avatarUrl": "https://spark-builder.s3.cn-north-1.amazonaws.com.cn/image/2026/5/25/77fefb85-a38b-48f8-8e7d-e7a6df12426d.png"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/api/v1/auth/register": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "用户注册",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterRequest"
+              },
+              "example": {
+                "name": "系统管理员",
+                "email": "admin@hydroguardian.cn",
+                "password": "12345678",
+                "confirmPassword": "12345678",
+                "agreeTerms": true
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "??",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegisterResponse"
+                },
+                "example": {
+                  "code": "0",
+                  "message": "OK",
+                  "traceId": "trace-20260526-auth-002",
+                  "data": {
+                    "userId": "user-001",
+                    "email": "admin@hydroguardian.cn",
+                    "createdAt": "2026-05-26T10:00:00Z"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationFailed"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/api/v1/auth/refresh": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "刷新会话令牌",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefreshTokenRequest"
+              },
+              "example": {
+                "refreshToken": "refresh-token-string"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "??",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RefreshTokenResponse"
+                },
+                "example": {
+                  "code": "0",
+                  "message": "OK",
+                  "traceId": "trace-20260526-auth-003",
+                  "data": {
+                    "token": "new-jwt-token-string",
+                    "tokenType": "Bearer",
+                    "expiresIn": 7200
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/api/v1/auth/logout": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "退出登录",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "??",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LogoutResponse"
+                },
+                "example": {
+                  "code": "0",
+                  "message": "OK",
+                  "traceId": "trace-20260526-auth-004",
+                  "data": ""
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/api/v1/auth/me": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "获取当前登录用户信息",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "??",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeResponse"
+                },
+                "example": {
+                  "code": "0",
+                  "message": "OK",
+                  "traceId": "trace-20260526-auth-005",
+                  "data": {
+                    "id": "user-001",
+                    "name": "系统管理员",
+                    "email": "admin@hydroguardian.cn",
+                    "role": "admin",
+                    "department": "安全运营部",
+                    "avatarUrl": "https://spark-builder.s3.cn-north-1.amazonaws.com.cn/image/2026/5/25/77fefb85-a38b-48f8-8e7d-e7a6df12426d.png"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/api/v1/auth/change-password": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "修改密码",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangePasswordRequest"
+              },
+              "example": {
+                "currentPassword": "OldPass123",
+                "newPassword": "NewPass123",
+                "confirmPassword": "NewPass123"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "??",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChangePasswordResponse"
+                },
+                "example": {
+                  "code": "0",
+                  "message": "OK",
+                  "traceId": "trace-20260526-auth-006",
+                  "data": ""
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationFailed"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
     "/api/v1/zones": {
       "get": {
         "tags": [
@@ -422,9 +741,9 @@
                   "traceId": "trace-20260526-000",
                   "data": [
                     {
-                      "lng": 0.0,
-                      "lat": 0.0,
-                      "value": 0.0
+                      "lng": 0,
+                      "lat": 0,
+                      "value": 0
                     }
                   ]
                 }
@@ -806,7 +1125,7 @@
                   "data": {
                     "summary": "string",
                     "caseId": "string",
-                    "riskScore": 0.0
+                    "riskScore": 0
                   }
                 }
               }
@@ -896,8 +1215,8 @@
                         "level": "low",
                         "status": "new",
                         "zoneId": "string",
-                        "lng": 0.0,
-                        "lat": 0.0,
+                        "lng": 0,
+                        "lat": 0,
                         "updatedAt": "2026-05-26T10:00:00Z"
                       }
                     ]
@@ -943,8 +1262,8 @@
                     "level": "low",
                     "status": "new",
                     "zoneId": "string",
-                    "lng": 0.0,
-                    "lat": 0.0,
+                    "lng": 0,
+                    "lat": 0,
                     "updatedAt": "2026-05-26T10:00:00Z",
                     "description": "string",
                     "evidenceImages": [
@@ -4177,6 +4496,256 @@
                     }
                   }
                 }
+              }
+            }
+          }
+        ]
+      },
+      "LoginRequest": {
+        "type": "object",
+        "required": [
+          "email",
+          "password"
+        ],
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "password": {
+            "type": "string",
+            "minLength": 6
+          },
+          "rememberMe": {
+            "type": "boolean",
+            "default": false
+          }
+        }
+      },
+      "AuthUser": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "role": {
+            "type": "string"
+          },
+          "department": {
+            "type": "string"
+          },
+          "avatarUrl": {
+            "type": "string",
+            "format": "uri"
+          }
+        }
+      },
+      "LoginResponseData": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string"
+          },
+          "tokenType": {
+            "type": "string",
+            "example": "Bearer"
+          },
+          "expiresIn": {
+            "type": "integer",
+            "example": 7200
+          },
+          "user": {
+            "$ref": "#/components/schemas/AuthUser"
+          }
+        }
+      },
+      "LoginResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ApiSuccess"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/LoginResponseData"
+              }
+            }
+          }
+        ]
+      },
+      "RegisterRequest": {
+        "type": "object",
+        "required": [
+          "name",
+          "email",
+          "password",
+          "confirmPassword",
+          "agreeTerms"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "password": {
+            "type": "string",
+            "minLength": 8
+          },
+          "confirmPassword": {
+            "type": "string",
+            "minLength": 8
+          },
+          "agreeTerms": {
+            "type": "boolean"
+          }
+        }
+      },
+      "RegisterResponseData": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "RegisterResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ApiSuccess"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/RegisterResponseData"
+              }
+            }
+          }
+        ]
+      },
+      "RefreshTokenRequest": {
+        "type": "object",
+        "required": [
+          "refreshToken"
+        ],
+        "properties": {
+          "refreshToken": {
+            "type": "string"
+          }
+        }
+      },
+      "RefreshTokenResponseData": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string"
+          },
+          "tokenType": {
+            "type": "string",
+            "example": "Bearer"
+          },
+          "expiresIn": {
+            "type": "integer",
+            "example": 7200
+          }
+        }
+      },
+      "RefreshTokenResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ApiSuccess"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/RefreshTokenResponseData"
+              }
+            }
+          }
+        ]
+      },
+      "ChangePasswordRequest": {
+        "type": "object",
+        "required": [
+          "currentPassword",
+          "newPassword",
+          "confirmPassword"
+        ],
+        "properties": {
+          "currentPassword": {
+            "type": "string",
+            "minLength": 6
+          },
+          "newPassword": {
+            "type": "string",
+            "minLength": 8
+          },
+          "confirmPassword": {
+            "type": "string",
+            "minLength": 8
+          }
+        }
+      },
+      "LogoutResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ApiSuccess"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "string"
+              }
+            }
+          }
+        ]
+      },
+      "MeResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ApiSuccess"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/AuthUser"
+              }
+            }
+          }
+        ]
+      },
+      "ChangePasswordResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ApiSuccess"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "string"
               }
             }
           }

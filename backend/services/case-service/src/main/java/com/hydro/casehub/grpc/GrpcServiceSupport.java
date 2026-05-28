@@ -15,8 +15,19 @@ public final class GrpcServiceSupport {
         return Status.NOT_FOUND.withDescription(message).asRuntimeException();
     }
 
+    public static RuntimeException alreadyExists(String message) {
+        return Status.ALREADY_EXISTS.withDescription(message).asRuntimeException();
+    }
+
+    public static RuntimeException unauthenticated(String message) {
+        return Status.UNAUTHENTICATED.withDescription(message).asRuntimeException();
+    }
+
+    public static RuntimeException permissionDenied(String message) {
+        return Status.PERMISSION_DENIED.withDescription(message).asRuntimeException();
+    }
+
     public static RuntimeException internal(String message, Throwable cause) {
         return Status.INTERNAL.withDescription(message).withCause(cause).asRuntimeException();
     }
 }
-

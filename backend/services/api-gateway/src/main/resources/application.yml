@@ -8,6 +8,9 @@ spring:
     nacos:
       discovery:
         server-addr: ${NACOS_SERVER_ADDR:localhost:8848}
+        namespace: ${NACOS_NAMESPACE:public}
+        group: ${NACOS_GROUP:DEFAULT_GROUP}
+        cluster-name: ${NACOS_CLUSTER:DEFAULT}
   datasource:
     url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:agent_service_db}?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
     username: ${DB_USER:hydro}
@@ -22,6 +25,8 @@ management:
 
 app:
   agent-service-name: ${AGENT_SERVICE_NAME:agent-service}
+  case-service-name: ${CASE_SERVICE_NAME:case-service}
+  auth-token-secret: ${AUTH_TOKEN_SECRET:hydroguardian-dev-secret}
 
 mybatis-plus:
   configuration:
