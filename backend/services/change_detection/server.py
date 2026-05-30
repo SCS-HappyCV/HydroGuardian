@@ -7,6 +7,7 @@ import cv2
 import numpy as np
 import torch
 from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi.responses import FileResponse
 
 from final_model import final_BaseNet
 from Transforms import Compose, NormalizeJpgSafe, Scale, ToTensor
@@ -126,7 +127,7 @@ def predict(
     cv2.imwrite(out_path, mask)
     print(output.min().item(), output.max().item(), output.mean().item())
 
-    return {"output_path": out_path}
+    return FileResponse(out_path, media_type="image/png", filename=filename)
 
 
 if __name__ == "__main__":

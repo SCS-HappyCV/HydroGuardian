@@ -20,7 +20,9 @@ backend/services/agent-service/__pycache__/
 
 # checkpoints
 backend/services/hydro_program3d/checkpoints/
-backend/services/change_detection/weight/best_model.pth
+backend/services/change_detection/weight
+backend/services/change_detection/__pycache__
+backend/services/change_detection/outputs
 
 # Frontend (web)
 web/node_modules/
