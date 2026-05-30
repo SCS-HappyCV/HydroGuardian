@@ -18,6 +18,9 @@ backend/services/agent-service/src/*_pb2_grpc.py
 backend/services/agent-service/src/__pycache__/
 backend/services/agent-service/__pycache__/
 
+# checkpoints
+backend/services/hydro_program3d/checkpoints/
+
 # Frontend (web)
 web/node_modules/
 web/dist/
