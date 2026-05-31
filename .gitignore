@@ -13,8 +13,9 @@ backend/data/minio/conf/**
 !backend/data/minio/conf/.gitkeep
 
 # Generated proto code in agent-service dev mode
-backend/services/agent-service/src/*_pb2.py
-backend/services/agent-service/src/*_pb2_grpc.py
+backend/services/agent-service/src/generated/*_pb2.py
+backend/services/agent-service/src/generated/*_pb2_grpc.py
+backend/services/agent-service/src/generated/__pycache__/
 backend/services/agent-service/src/__pycache__/
 backend/services/agent-service/__pycache__/
 
