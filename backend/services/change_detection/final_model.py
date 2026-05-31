@@ -47,7 +47,7 @@ class TemporalFusionModule(nn.Module):
 class final_BaseNet(nn.Module):       #new1_FRM+MySSAM+NewDecoder3
     def __init__(self, input_nc=3, output_nc=1):
         super(final_BaseNet, self).__init__()
-        self.backbone = MobileNetV2.mobilenet_v2(pretrained=True)
+        self.backbone = MobileNetV2.mobilenet_v2(pretrained=False)
         channles = [16, 24, 32, 96, 320]
         self.en_d = 32
         self.mid_d = self.en_d * 2

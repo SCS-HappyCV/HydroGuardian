@@ -1,3 +1,6 @@
+from __future__ import annotations
+
+import asyncio
 import os
 import time
 import uuid
@@ -10,13 +13,19 @@ from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 
 from final_model import final_BaseNet
+from nacos import NacosRegistrar
+from service_config import load_settings
 from Transforms import Compose, NormalizeJpgSafe, Scale, ToTensor
 
 app = FastAPI(title="RFANet Inference API")
 
-OUTPUT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "outputs"))
-DEFAULT_WEIGHTS = os.path.abspath(os.path.join(os.path.dirname(__file__), "weight", "best_model.pth"))
-DEFAULT_DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+settings = load_settings()
+nacos = NacosRegistrar(settings)
+nacos_task: Optional[asyncio.Task] = None
+
+OUTPUT_DIR = str(settings.output_dir)
+DEFAULT_WEIGHTS = str(settings.weights_path)
+DEFAULT_DEVICE = settings.device
 
 _model: Optional[torch.nn.Module] = None
 _device: str = DEFAULT_DEVICE
@@ -66,10 +75,10 @@ def _ensure_output_dir() -> None:
 
 
 @app.on_event("startup")
-def _startup() -> None:
-    global _model, _device
-    _device = os.environ.get("RFANET_DEVICE", DEFAULT_DEVICE)
-    weights_path = os.environ.get("RFANET_WEIGHTS", DEFAULT_WEIGHTS)
+async def _startup() -> None:
+    global _model, _device, nacos_task
+    _device = settings.device
+    weights_path = str(settings.weights_path)
 
     model = final_BaseNet(3, 1)
     _load_state_dict(model, weights_path)
@@ -77,14 +86,33 @@ def _startup() -> None:
     _model = model.to(_device)
 
     _ensure_output_dir()
+    if settings.nacos_enabled:
+        nacos_task = asyncio.create_task(nacos.heartbeat_loop())
+
+
+@app.on_event("shutdown")
+async def _shutdown() -> None:
+    global nacos_task
+    if nacos_task:
+        nacos_task.cancel()
+        nacos_task = None
+    try:
+        await nacos.deregister()
+    except Exception as exc:
+        print(f"[change-detection] nacos deregister failed: {exc}")
 
 
 @app.get("/health")
 def health() -> dict:
     return {
         "status": "ok",
+        "service": "change_detection",
         "device": _device,
-        "weights": os.environ.get("RFANET_WEIGHTS", DEFAULT_WEIGHTS),
+        "weights": str(settings.weights_path),
+        "nacos_enabled": settings.nacos_enabled,
+        "nacos_service_name": settings.nacos_service_name,
+        "nacos_registered": nacos.registered,
+        "nacos_error": nacos.last_error,
     }
 
 
@@ -133,4 +161,4 @@ def predict(
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(app, host="0.0.0.0", port=8011)
+    uvicorn.run(app, host=settings.host, port=settings.port)

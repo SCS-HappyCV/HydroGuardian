@@ -30,5 +30,3 @@ curl -X POST "http:/172.16.224.21:8011/predict" \
   -F "threshold=0.5" \
   -o mask.png
 ```
-
-The response is a PNG mask image. The file is also saved on the server under Api/outputs.
