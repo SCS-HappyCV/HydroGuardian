@@ -7,7 +7,7 @@ from .task_contract import normalize_intent, normalize_temporal_intent
 from .task_openai_parser import parse_task_with_llm
 from .task_rule_parser import parse_task_with_rules
 
-#选择 auto/openai/rule、LLM 失败回退、写入 state["task_intent"]
+
 def _failure_intent(state: AgentState, reason: str) -> dict[str, object]:
     return normalize_intent(
         {
@@ -30,18 +30,31 @@ def _failure_intent(state: AgentState, reason: str) -> dict[str, object]:
 
 
 async def task_parser_node(state: AgentState) -> AgentState:
-    # 任务理解先走 LLM 工具调用；如果失败，再回退到规则解析。
     backend = TASK_PARSER_BACKEND
     if backend not in {"auto", "openai", "rule"}:
         backend = "auto"
 
     if backend == "rule":
         intent = parse_task_with_rules(state)
+        print(
+            f"[agent-service] task parser used rule backend target={intent.get('target')} "
+            f"needs_abstain={intent.get('needs_abstain')}",
+            flush=True,
+        )
     else:
         try:
             intent = await parse_task_with_llm(state)
+            print(
+                f"[agent-service] task parser llm success source={intent.get('parser_source')} "
+                f"target={intent.get('target')} needs_abstain={intent.get('needs_abstain')}",
+                flush=True,
+            )
         except Exception as exc:
             if TASK_PARSER_FALLBACK_TO_RULE:
+                print(
+                    f"[agent-service] task parser llm failed, fallback to rule: {exc}",
+                    flush=True,
+                )
                 append_trace(
                     state,
                     "parse_task.llm_fallback",
@@ -50,6 +63,10 @@ async def task_parser_node(state: AgentState) -> AgentState:
                 )
                 intent = parse_task_with_rules(state)
             else:
+                print(
+                    f"[agent-service] task parser llm failed without fallback: {exc}",
+                    flush=True,
+                )
                 append_error(state, "parse_task", str(exc))
                 intent = _failure_intent(state, str(exc))
 

@@ -6,6 +6,14 @@ from pathlib import Path
 from typing import Any
 
 
+def first_non_empty_env(*names: str) -> str:
+    for name in names:
+        value = os.getenv(name, "").strip()
+        if value:
+            return value
+    return ""
+
+
 # 这份文件集中管理 agent-service 的运行配置。
 # 接手时如果怀疑“为什么连到这个服务 / 为什么读这个目录 / 为什么用这个模型配置”，
 # 通常先看这里。
@@ -34,16 +42,22 @@ TASK_PARSER_OPENAI_DISABLE_THINKING = (
     os.getenv("AGENT_TASK_PARSER_DISABLE_THINKING", "false").lower() == "true"
 )
 TASK_PARSER_FALLBACK_TO_RULE = os.getenv("AGENT_TASK_PARSER_FALLBACK_TO_RULE", "true").lower() == "true"
-TASK_PARSER_OPENAI_BASE_URL = os.getenv("AGENT_TASK_PARSER_OPENAI_BASE_URL", os.getenv("OPENAI_BASE_URL", ""))
-TASK_PARSER_OPENAI_API_KEY = os.getenv(
+TASK_PARSER_OPENAI_BASE_URL = first_non_empty_env(
+    "AGENT_TASK_PARSER_OPENAI_BASE_URL",
+    "OPENAI_BASE_URL",
+)
+TASK_PARSER_OPENAI_API_KEY = first_non_empty_env(
     "AGENT_TASK_PARSER_OPENAI_API_KEY",
-    os.getenv("OPENAI_API_KEY", os.getenv("DASHSCOPE_API_KEY", "")),
+    "OPENAI_API_KEY",
+    "DASHSCOPE_API_KEY",
 )
-TASK_PARSER_OPENAI_ORGANIZATION = os.getenv(
-    "AGENT_TASK_PARSER_OPENAI_ORG_ID", os.getenv("OPENAI_ORG_ID", "")
+TASK_PARSER_OPENAI_ORGANIZATION = first_non_empty_env(
+    "AGENT_TASK_PARSER_OPENAI_ORG_ID",
+    "OPENAI_ORG_ID",
 )
-TASK_PARSER_OPENAI_PROJECT = os.getenv(
-    "AGENT_TASK_PARSER_OPENAI_PROJECT_ID", os.getenv("OPENAI_PROJECT_ID", "")
+TASK_PARSER_OPENAI_PROJECT = first_non_empty_env(
+    "AGENT_TASK_PARSER_OPENAI_PROJECT_ID",
+    "OPENAI_PROJECT_ID",
 )
 
 CHANGE_DETECTION_SERVICE_NAME = os.getenv("CHANGE_DETECTION_SERVICE_NAME", "change-detection")
