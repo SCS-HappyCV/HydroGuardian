@@ -12,6 +12,8 @@ from nodes.task import task_parser_node
 from state import AgentState
 
 
+# 主流程先保持线性，方便联调和排查。像 review-required、abstain
+# 这类提前退出分支先通过 state/status 编码，由各节点自己处理。
 graph_builder = StateGraph(AgentState)
 graph_builder.add_node("parse_task", task_parser_node)
 graph_builder.add_node("build_program", program_builder_node)

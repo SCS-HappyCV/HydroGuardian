@@ -14,6 +14,8 @@ from state import AgentState, append_error, append_trace
 
 
 async def run_change_detection(state: AgentState) -> AgentState:
+    # 只有明确带时间变化意图的任务，才值得去调 change-detection。
+    # 否则直接标记 skipped，避免无意义的外部调用。
     if not state["task_intent"].get("temporal_intent"):
         state["change_pack"] = {
             "status": "skipped",
@@ -23,6 +25,8 @@ async def run_change_detection(state: AgentState) -> AgentState:
         return state
 
     sample = state["scene_tensor_sample"]
+    # 这里约定 sample 必须带前后时相影像路径。
+    # 如果只有 3D 样本，没有前后影像，就无法做 2D 变化检测。
     pre_image_path = sample.get("pre_image_path") or sample.get("preImagePath")
     post_image_path = sample.get("post_image_path") or sample.get("postImagePath")
     if not pre_image_path or not post_image_path:
@@ -37,6 +41,8 @@ async def run_change_detection(state: AgentState) -> AgentState:
     try:
         base_url = await resolve_http_base_url(CHANGE_DETECTION_SERVICE_NAME, CHANGE_DETECTION_URL)
         timeout = httpx.Timeout(CHANGE_DETECTION_TIMEOUT_SECONDS)
+        # 当前 change-detection 接口收的是文件上传，不是 JSON。
+        # 所以这里直接把 pre/post 图像按 multipart/form-data 发出去。
         with open(pre_image_path, "rb") as pre_file, open(post_image_path, "rb") as post_file:
             files = {
                 "pre_image": (Path(pre_image_path).name, pre_file, "application/octet-stream"),
@@ -46,6 +52,8 @@ async def run_change_detection(state: AgentState) -> AgentState:
                 resp = await client.post(f"{base_url}/predict", files=files, data={"threshold": "0.5"})
         if resp.status_code >= 300:
             raise RuntimeError(f"/predict {resp.status_code}: {resp.text[:500]}")
+        # 当前只记录了最基础的变化摘要。后续如果需要更细的业务解释，
+        # 可以在这里把返回结果扩成更完整的 ChangePack。
         state["change_pack"] = {
             "status": "success",
             "change_type": "changed",
@@ -58,6 +66,7 @@ async def run_change_detection(state: AgentState) -> AgentState:
     except Exception as exc:
         reason = str(exc)
         append_error(state, "detect_change", reason)
+        # 变化检测失败目前不直接终止主流程，而是把风险判断推向人工复核。
         state["change_pack"] = {
             "status": "failed",
             "reason": reason,

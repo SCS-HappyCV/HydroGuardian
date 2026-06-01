@@ -17,6 +17,8 @@ from state import AgentState, append_error, append_trace, failure_evidence_pack
 
 
 def build_execute_request(state: AgentState) -> Dict[str, Any]:
+    # 请求体尽量贴近 hydro-program3d 的公开契约，
+    # 这样服务 README 仍然能直接拿来当联调参考。
     body = {
         "checkpoint_name": HYDRO_PROGRAM3D_CHECKPOINT_NAME,
         "device": HYDRO_PROGRAM3D_DEVICE,
@@ -45,6 +47,8 @@ async def run_hydro_program3d(state: AgentState) -> AgentState:
         timeout = httpx.Timeout(HYDRO_PROGRAM3D_TIMEOUT_SECONDS)
         async with httpx.AsyncClient(timeout=timeout) as client:
             try:
+                # health 只做参考，不作为强阻断条件。
+                # 有些半联通部署 health 会偏保守，但 execute 仍可能可用。
                 health = await client.get(f"{base_url}/health")
                 append_trace(
                     state,
@@ -55,6 +59,8 @@ async def run_hydro_program3d(state: AgentState) -> AgentState:
             except Exception as exc:
                 append_trace(state, "execute_3d.health", f"health check skipped: {exc}")
 
+            # /execute 保留原始模型输出，便于排查；
+            # /compile_evidence 再把它转成下游稳定消费的 EvidencePack。
             execute_resp = await client.post(f"{base_url}/execute", json=build_execute_request(state))
             if execute_resp.status_code >= 300:
                 raise RuntimeError(f"/execute {execute_resp.status_code}: {execute_resp.text[:500]}")
@@ -87,6 +93,8 @@ async def run_hydro_program3d(state: AgentState) -> AgentState:
     except Exception as exc:
         reason = str(exc)
         append_error(state, "execute_3d", reason)
+        # 即使失败也统一补一个 EvidencePack 形状的对象，
+        # 这样下游节点可以降级到 review-required，而不是直接崩掉。
         state["evidence_pack"] = failure_evidence_pack(reason)
         state["status"] = "REVIEW_REQUIRED"
     return state

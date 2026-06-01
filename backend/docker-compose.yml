@@ -163,7 +163,7 @@ services:
       context: ./services/agent-service
       dockerfile: Dockerfile
     container_name: hydro-agent-service
-    command: ["sh", "-lc", "sh ./scripts/build_proto.sh && python ./src/main.py"]
+    command: ["sh", "-lc", "sh ./scripts/build_proto.sh && python -u ./src/main.py"]
     volumes:
       - ./services/agent-service:/app
     develop:
@@ -181,6 +181,7 @@ services:
     environment:
       AGENT_SERVICE_PORT: 8081
       AGENT_GRPC_PORT: 9091
+      PYTHONUNBUFFERED: 1
       CASE_SERVICE_NAME: case-service
       FILE_SERVICE_NAME: file-service
       NACOS_SERVER_ADDR: nacos:8848
@@ -188,6 +189,15 @@ services:
       REDIS_URL: redis://redis:6379/0
       RABBITMQ_URL: amqp://hydro:hydro123@rabbitmq:5672/
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      DASHSCOPE_API_KEY: ${DASHSCOPE_API_KEY:-}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-}
+      OPENAI_ORG_ID: ${OPENAI_ORG_ID:-}
+      OPENAI_PROJECT_ID: ${OPENAI_PROJECT_ID:-}
+      AGENT_TASK_PARSER_BACKEND: ${AGENT_TASK_PARSER_BACKEND:-auto}
+      AGENT_TASK_PARSER_MODEL: ${AGENT_TASK_PARSER_MODEL:-gpt-5.5}
+      AGENT_TASK_PARSER_MAX_TOKENS: ${AGENT_TASK_PARSER_MAX_TOKENS:-500}
+      AGENT_TASK_PARSER_DISABLE_THINKING: ${AGENT_TASK_PARSER_DISABLE_THINKING:-false}
+      AGENT_TASK_PARSER_FALLBACK_TO_RULE: ${AGENT_TASK_PARSER_FALLBACK_TO_RULE:-true}
       HYDRO_PROGRAM3D_URL: http://hydro-program3d:8093
       CHANGE_DETECTION_URL: http://change-detection:8011
     ports:

@@ -47,6 +47,8 @@ def pick_instance(instances: list[Dict[str, Any]]) -> Dict[str, Any]:
     if not candidates:
         raise RuntimeError("Nacos has no enabled instances")
 
+    # 按 Nacos 的 weight 语义选实例，保证多实例场景下
+    # 本地联调行为尽量接近真实部署。
     weighted: list[tuple[Dict[str, Any], float]] = []
     total_weight = 0.0
     for item in candidates:
@@ -100,6 +102,8 @@ async def resolve_grpc_target(service_name: str, explicit_target: str = "") -> s
         return explicit_target
 
     now = asyncio.get_running_loop().time()
+    # TTL 设短一点，避免每次请求都打 Nacos，
+    # 同时也让 compose 重启后的实例变更能较快生效。
     cached = service_target_cache.get(service_name)
     if cached and now - cached[1] < NACOS_DISCOVERY_CACHE_TTL_SECONDS:
         return cached[0]
@@ -200,7 +204,9 @@ async def send_nacos_beat() -> None:
         "beat": json.dumps(beat, ensure_ascii=False),
     }
     async with httpx.AsyncClient(timeout=10) as client:
-        await client.put(f"{nacos_base_url()}/nacos/v1/ns/instance/beat", params=params)
+        resp = await client.put(f"{nacos_base_url()}/nacos/v1/ns/instance/beat", params=params)
+        if resp.status_code >= 300:
+            raise RuntimeError(f"Nacos heartbeat failed: {resp.status_code} {resp.text}")
 
 
 async def nacos_heartbeat_loop() -> None:

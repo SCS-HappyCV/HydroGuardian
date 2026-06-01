@@ -40,3 +40,8 @@ web/pnpm-debug.log*
 web/.env
 web/.env.local
 web/.env.*.local
+
+# Backend local env
+backend/.env
+backend/.env.local
+backend/.env.*.local

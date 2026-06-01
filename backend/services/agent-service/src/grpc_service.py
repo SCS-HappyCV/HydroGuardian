@@ -11,6 +11,10 @@ from state import AgentState, append_error
 class AgentRpcServiceServicer(agent_pb2_grpc.AgentRpcServiceServicer):
     async def ExecuteTask(self, request, context):
         try:
+            # request 只有比较薄的输入：task_text + scene_id。
+            # 后面所有中间结果都靠这份 init_state 逐步补齐。
+            # 所有节点都原地读写这份共享状态。初始化字段尽量在这里写全，
+            # 这样后续接手的人能很快看清楚整条链路依赖了哪些上下文字段。
             init_state: AgentState = {
                 "case_id": "",
                 "task_id": "",
@@ -32,9 +36,12 @@ class AgentRpcServiceServicer(agent_pb2_grpc.AgentRpcServiceServicer):
                 "errors": [],
                 "trace": [],
             }
+            # graph.ainvoke 会按照 agent_graph.py 里定义的顺序，依次执行各节点。
             final_state = await graph.ainvoke(init_state)
 
             try:
+                # 持久化放在推理之后做。即使 case-service 暂时不可用，
+                # 也不应该把已经生成的风险和建议结果一起吞掉。
                 case_result = await persist_case(final_state)
                 final_state["case_result"] = case_result
             except Exception as exc:
@@ -45,6 +52,8 @@ class AgentRpcServiceServicer(agent_pb2_grpc.AgentRpcServiceServicer):
             recommendation = (
                 final_state["recommendation_cards"][0] if final_state["recommendation_cards"] else {}
             )
+            # 当前 gRPC 返回给上游的是“摘要结果”，不是完整证据链。
+            # 如果后面前端或网关要展示完整 trace / evidence，需要扩 proto。
             return agent_pb2.ExecuteTaskReply(
                 task_text=request.task_text,
                 scene_id=request.scene_id,

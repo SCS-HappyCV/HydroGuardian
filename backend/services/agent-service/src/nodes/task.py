@@ -1,69 +1,64 @@
 from __future__ import annotations
 
-from typing import Any, Dict
+from config import TASK_PARSER_BACKEND, TASK_PARSER_FALLBACK_TO_RULE
+from state import AgentState, append_error, append_trace
 
-from state import AgentState, append_trace
+from .task_contract import normalize_intent, normalize_temporal_intent
+from .task_openai_parser import parse_task_with_llm
+from .task_rule_parser import parse_task_with_rules
+
+#选择 auto/openai/rule、LLM 失败回退、写入 state["task_intent"]
+def _failure_intent(state: AgentState, reason: str) -> dict[str, object]:
+    return normalize_intent(
+        {
+            "goal": "water_hazard_screening",
+            "intent_type": "inspection",
+            "target": "disturbance",
+            "attributes": [],
+            "relations": [],
+            "negatives": [],
+            "needs_clarification": True,
+            "clarification_question": "当前任务无法被自动解析，请补充目标、空间关系或排除条件。",
+            "needs_abstain": False,
+            "abstain_reason": reason,
+            "priority": "medium",
+            "temporal_intent": normalize_temporal_intent(state["task_text"]),
+        },
+        state,
+        parser_source="llm_failed",
+    )
 
 
-def task_parser_node(state: AgentState) -> AgentState:
-    text = state["task_text"].strip()
-    text_lower = text.lower()
+async def task_parser_node(state: AgentState) -> AgentState:
+    # 任务理解先走 LLM 工具调用；如果失败，再回退到规则解析。
+    backend = TASK_PARSER_BACKEND
+    if backend not in {"auto", "openai", "rule"}:
+        backend = "auto"
 
-    target = "disturbance"
-    if "沟渠" in text or "ditch" in text_lower:
-        target = "ditch"
-    elif "水线" in text or "waterline" in text_lower:
-        target = "waterline"
-    elif "陡坡" in text or "steep" in text_lower or "slope" in text_lower:
-        target = "steep_slope"
-    elif "道路" in text or "road" in text_lower:
-        target = "road"
+    if backend == "rule":
+        intent = parse_task_with_rules(state)
+    else:
+        try:
+            intent = await parse_task_with_llm(state)
+        except Exception as exc:
+            if TASK_PARSER_FALLBACK_TO_RULE:
+                append_trace(
+                    state,
+                    "parse_task.llm_fallback",
+                    "LLM task parser failed; rule fallback used",
+                    {"error": str(exc)[:300]},
+                )
+                intent = parse_task_with_rules(state)
+            else:
+                append_error(state, "parse_task", str(exc))
+                intent = _failure_intent(state, str(exc))
 
-    attributes: list[str] = []
-    if "细长" in text or "linear" in text_lower:
-        attributes.extend(["thin", "linear"])
-    if "裸地" in text or "bare" in text_lower:
-        attributes.append("bare")
-
-    relations: list[Dict[str, Any]] = []
-    if "近水" in text or "水线" in text or "waterline" in text_lower or "near water" in text_lower:
-        if target == "waterline" and ("沟渠" in text or "ditch" in text_lower):
-            reference = "ditch"
-        else:
-            reference = "waterline"
-        relations.append(
-            {
-                "type": "near",
-                "reference": reference,
-                "distance_m": 5.0,
-                "evidence": ["geometry"],
-            }
-        )
-
-    negatives: list[str] = []
-    has_negative_cue = "排除" in text or "exclude" in text_lower or "not " in text_lower
-    if has_negative_cue and ("道路" in text or "road" in text_lower):
-        negatives.extend(["cement road", "dirt road"])
-
-    temporal_keywords = ["变化", "新增", "扩大", "历史", "对比", "前后", "change", "new", "expanded"]
-    temporal_intent = any(keyword in text_lower or keyword in text for keyword in temporal_keywords)
-
-    needs_clarification = not text or not state["scene_id"]
-    needs_abstain = target == "disturbance" and not relations and not attributes
-
-    state["task_intent"] = {
-        "goal": "water_hazard_screening",
-        "intent_type": "inspection",
-        "target": target,
-        "attributes": attributes,
-        "relations": relations,
-        "negatives": negatives,
-        "needs_clarification": needs_clarification,
-        "needs_abstain": needs_abstain,
-        "priority": "high" if relations or temporal_intent else "medium",
-        "temporal_intent": temporal_intent,
-        "source_text": text,
-    }
+    state["task_intent"] = intent
     state["status"] = "INTENT_PARSED"
-    append_trace(state, "parse_task", "task intent parsed", {"target": target})
+    append_trace(
+        state,
+        "parse_task",
+        "task intent parsed",
+        {"target": intent.get("target"), "parser_source": intent.get("parser_source")},
+    )
     return state

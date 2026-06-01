@@ -13,6 +13,8 @@ from state import AgentState
 async def persist_case(state: AgentState) -> Dict[str, Any]:
     risk = state["risk_cards"][0] if state["risk_cards"] else {}
     target = state["task_intent"].get("target", "water_hazard")
+    # tags 这里刻意镜像 agent 侧的关键信息，
+    # 让 case-service 不需要理解全部字段也能存一份紧凑摘要。
     tags = {
         "tags": ["langgraph", "hydro-program3d", "agent-service"],
         "riskType": risk.get("risk_type"),

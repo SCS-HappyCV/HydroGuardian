@@ -21,6 +21,8 @@ def recommendation_node(state: AgentState) -> AgentState:
         action = "转人工复核，当前证据不足以自动给出风险等级"
         suggestion = "检查 3D 服务执行结果、输入张量完整性、拒答信号和 no-target 信号"
 
+    # 当前 MVP 把 recommendation 和 work-order 生成放在一个节点里。
+    # 等真正接入工作流引擎或外部派单系统后，再拆成独立节点更合适。
     recommendation = {
         "recommendation_id": "rec_001",
         "risk_card_id": "risk_001",
