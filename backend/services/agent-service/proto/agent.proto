@@ -2,16 +2,20 @@ syntax = "proto3";
 
 package hydro.agent.v1;
 
+// agent-service 对外暴露的智能体执行与文件查询 gRPC 契约。
 service AgentRpcService {
   rpc ExecuteTask (ExecuteTaskRequest) returns (ExecuteTaskReply);
   rpc QueryFile (QueryFileRequest) returns (QueryFileReply);
 }
 
+// 执行巡查任务所需的最小输入，debug 用于控制是否返回完整 trace。
 message ExecuteTaskRequest {
   string task_text = 1;
   string scene_id = 2;
+  bool debug = 3;
 }
 
+// 智能体执行结果摘要，包含风险结果、case 落库状态和诊断信息。
 message ExecuteTaskReply {
   string task_text = 1;
   string scene_id = 2;
@@ -21,12 +25,39 @@ message ExecuteTaskReply {
   string recommendation_action = 6;
   string case_id = 7;
   string case_status = 8;
+  string execution_status = 9;
+  string parser_source = 10;
+  string evidence_status = 11;
+  bool review_required = 12;
+  repeated AgentTraceItem trace = 13;
+  repeated AgentErrorItem errors = 14;
+  // 使用 trace_total 避免 Java 生成代码与 repeated trace 的 getTraceCount() 冲突。
+  int32 trace_total = 15;
+  int32 error_count = 16;
+  string case_persistence_status = 17;
+  string case_persistence_error = 18;
 }
 
+// 单条链路追踪事件，data_json 保存结构化诊断信息。
+message AgentTraceItem {
+  string stage = 1;
+  string message = 2;
+  string data_json = 3;
+}
+
+// 单条错误事件，保持和 trace 一致的字段形态便于前端渲染。
+message AgentErrorItem {
+  string stage = 1;
+  string message = 2;
+  string data_json = 3;
+}
+
+// 文件查询请求。
 message QueryFileRequest {
   string file_id = 1;
 }
 
+// 文件元数据响应。
 message QueryFileReply {
   string file_id = 1;
   string file_name = 2;

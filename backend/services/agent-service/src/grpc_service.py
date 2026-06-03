@@ -1,14 +1,21 @@
+# agent-service 的 gRPC 服务入口。
+# 这里专注处理请求生命周期编排；响应组装、下游客户端和 LangGraph 节点逻辑
+# 都放在各自独立模块中。
+
 from __future__ import annotations
 
 import grpc
 
 from agent_graph import graph
-from clients.case_file import get_file_info, persist_case
+from clients.case_file import build_persistence_failure_result, get_file_info, persist_case
 from generated import agent_pb2, agent_pb2_grpc
+from responses import build_execute_task_reply
 from state import AgentState, append_error
 
 
+# 实现 proto 生成的 AgentRpcService 服务契约。
 class AgentRpcServiceServicer(agent_pb2_grpc.AgentRpcServiceServicer):
+    # 通过 LangGraph 流水线执行一条自然语言巡查任务。
     async def ExecuteTask(self, request, context):
         try:
             # request 只有比较薄的输入：task_text + scene_id。
@@ -36,6 +43,7 @@ class AgentRpcServiceServicer(agent_pb2_grpc.AgentRpcServiceServicer):
                 "errors": [],
                 "trace": [],
             }
+
             # graph.ainvoke 会按照 agent_graph.py 里定义的顺序，依次执行各节点。
             final_state = await graph.ainvoke(init_state)
 
@@ -46,27 +54,22 @@ class AgentRpcServiceServicer(agent_pb2_grpc.AgentRpcServiceServicer):
                 final_state["case_result"] = case_result
             except Exception as exc:
                 append_error(final_state, "persist_case", str(exc))
-                case_result = {}
+                # case-service 失败不阻断主结果，但仍要保留 agent_result 快照，
+                # 方便接口调用方回放本次执行链路。
+                case_result = build_persistence_failure_result(final_state, exc)
+                final_state["case_result"] = case_result
 
-            risk = final_state["risk_cards"][0] if final_state["risk_cards"] else {}
-            recommendation = (
-                final_state["recommendation_cards"][0] if final_state["recommendation_cards"] else {}
-            )
-            # 当前 gRPC 返回给上游的是“摘要结果”，不是完整证据链。
-            # 如果后面前端或网关要展示完整 trace / evidence，需要扩 proto。
-            return agent_pb2.ExecuteTaskReply(
-                task_text=request.task_text,
-                scene_id=request.scene_id,
-                target_type=str(final_state["task_intent"].get("target", "")),
-                risk_score=float(risk.get("risk_score", 0.0)),
-                risk_level=str(risk.get("risk_level", "")),
-                recommendation_action=str(recommendation.get("recommended_action", "")),
-                case_id=case_result.get("caseId", ""),
-                case_status=case_result.get("status", ""),
+            # 统一把 final_state 转成对外 gRPC 响应，避免响应协议扩展时
+            # 服务方法本身不断变胖。
+            return build_execute_task_reply(
+                request=request,
+                state=final_state,
+                case_result=case_result,
             )
         except Exception as exc:
             await context.abort(grpc.StatusCode.INTERNAL, str(exc))
 
+    # 通过 file-service 查询文件元数据并返回给网关调用方。
     async def QueryFile(self, request, context):
         try:
             file_result = await get_file_info(request.file_id)

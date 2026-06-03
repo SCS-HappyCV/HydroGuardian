@@ -1,10 +1,14 @@
+// case-service 的 gRPC 服务实现。
+// 这里负责 case 主表、agent 执行快照表和用户鉴权请求的落库与兜底缓存。
 package com.hydro.casehub.grpc;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.hydro.casehub.auth.PasswordHasher;
 import com.hydro.casehub.entity.AppUserEntity;
+import com.hydro.casehub.entity.CaseAgentResultEntity;
 import com.hydro.casehub.entity.RiskCaseEntity;
 import com.hydro.casehub.mapper.AppUserMapper;
+import com.hydro.casehub.mapper.CaseAgentResultMapper;
 import com.hydro.casehub.mapper.RiskCaseMapper;
 import com.hydro.grpc.casev1.AuthUser;
 import com.hydro.grpc.casev1.CaseReply;
@@ -26,21 +30,32 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
 @Component
+// 组合 case、agent_result 和用户三类能力的 gRPC 服务。
 public class CaseGrpcService extends CaseRpcServiceGrpc.CaseRpcServiceImplBase {
 
     private final RiskCaseMapper mapper;
+    private final CaseAgentResultMapper agentResultMapper;
     private final AppUserMapper appUserMapper;
     private final PasswordHasher passwordHasher;
     private final ConcurrentMap<String, RiskCaseEntity> memoryStore = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, CaseAgentResultEntity> agentResultMemoryStore = new ConcurrentHashMap<>();
     private final ConcurrentMap<String, AppUserEntity> userMemoryStore = new ConcurrentHashMap<>();
 
-    public CaseGrpcService(RiskCaseMapper mapper, AppUserMapper appUserMapper, PasswordHasher passwordHasher) {
+    // 注入 case 主表、agent 结果表、用户表和密码工具。
+    public CaseGrpcService(
+            RiskCaseMapper mapper,
+            CaseAgentResultMapper agentResultMapper,
+            AppUserMapper appUserMapper,
+            PasswordHasher passwordHasher
+    ) {
         this.mapper = mapper;
+        this.agentResultMapper = agentResultMapper;
         this.appUserMapper = appUserMapper;
         this.passwordHasher = passwordHasher;
     }
 
     @Override
+    // 创建风险 case，并在 agent_result_json 不为空时同步保存完整智能体快照。
     public void createCase(CreateCaseRequest request, StreamObserver<CaseReply> responseObserver) {
         if (request.getTitle() == null || request.getTitle().isBlank()) {
             responseObserver.onError(GrpcServiceSupport.invalidArgument("title is required"));
@@ -53,11 +68,14 @@ public class CaseGrpcService extends CaseRpcServiceGrpc.CaseRpcServiceImplBase {
             memoryStore.put(entity.getCaseId(), entity);
         }
 
-        responseObserver.onNext(toReply(entity));
+        persistAgentResult(entity.getCaseId(), request.getAgentResultJson());
+
+        responseObserver.onNext(toReply(entity, loadAgentResultJson(entity.getCaseId())));
         responseObserver.onCompleted();
     }
 
     @Override
+    // 查询风险 case，并附带对应的 agent 执行快照 JSON。
     public void getCase(GetCaseRequest request, StreamObserver<CaseReply> responseObserver) {
         RiskCaseEntity entity = null;
         try {
@@ -75,11 +93,12 @@ public class CaseGrpcService extends CaseRpcServiceGrpc.CaseRpcServiceImplBase {
             responseObserver.onError(GrpcServiceSupport.notFound("Case not found: " + request.getCaseId()));
             return;
         }
-        responseObserver.onNext(toReply(entity));
+        responseObserver.onNext(toReply(entity, loadAgentResultJson(entity.getCaseId())));
         responseObserver.onCompleted();
     }
 
     @Override
+    // 注册新用户，并在数据库不可用时保留内存兜底。
     public void registerUser(RegisterUserRequest request, StreamObserver<RegisterUserReply> responseObserver) {
         String name = request.getName().trim();
         String email = normalizeEmail(request.getEmail());
@@ -143,6 +162,7 @@ public class CaseGrpcService extends CaseRpcServiceGrpc.CaseRpcServiceImplBase {
     }
 
     @Override
+    // 校验用户登录凭据，并返回网关可签发 token 的用户摘要。
     public void loginUser(LoginUserRequest request, StreamObserver<LoginUserReply> responseObserver) {
         String email = normalizeEmail(request.getEmail());
         if (!isValidEmail(email) || request.getPassword().isBlank()) {
@@ -175,7 +195,8 @@ public class CaseGrpcService extends CaseRpcServiceGrpc.CaseRpcServiceImplBase {
         responseObserver.onCompleted();
     }
 
-    private CaseReply toReply(RiskCaseEntity entity) {
+    // 将数据库实体转换为 gRPC 响应。
+    private CaseReply toReply(RiskCaseEntity entity, String agentResultJson) {
         return CaseReply.newBuilder()
                 .setCaseId(entity.getCaseId())
                 .setTitle(nullSafe(entity.getTitle()))
@@ -186,9 +207,11 @@ public class CaseGrpcService extends CaseRpcServiceGrpc.CaseRpcServiceImplBase {
                 .setAssignee(nullSafe(entity.getAssignee()))
                 .setTags(nullSafe(entity.getTags()))
                 .setCreatedAt(entity.getCreatedAt() == null ? "" : entity.getCreatedAt().toString())
+                .setAgentResultJson(nullSafe(agentResultJson))
                 .build();
     }
 
+    // 根据 CreateCaseRequest 构建 risk_case 主表实体。
     private RiskCaseEntity buildEntity(CreateCaseRequest request) {
         RiskCaseEntity entity = new RiskCaseEntity();
         entity.setCaseId("case-" + UUID.randomUUID());
@@ -203,6 +226,49 @@ public class CaseGrpcService extends CaseRpcServiceGrpc.CaseRpcServiceImplBase {
         return entity;
     }
 
+    // 保存 agent 执行快照；数据库失败时进入内存兜底，保持原有容错策略。
+    private void persistAgentResult(String caseId, String agentResultJson) {
+        if (agentResultJson == null || agentResultJson.isBlank()) {
+            return;
+        }
+        CaseAgentResultEntity entity = buildAgentResultEntity(caseId, agentResultJson);
+        try {
+            agentResultMapper.insert(entity);
+        } catch (Exception ignored) {
+            agentResultMemoryStore.put(caseId, entity);
+        }
+    }
+
+    // 构建 case_agent_result 表实体。
+    private CaseAgentResultEntity buildAgentResultEntity(String caseId, String agentResultJson) {
+        LocalDateTime now = LocalDateTime.now();
+        CaseAgentResultEntity entity = new CaseAgentResultEntity();
+        entity.setCaseId(caseId);
+        entity.setAgentResultJson(agentResultJson);
+        entity.setCreatedAt(now);
+        entity.setUpdatedAt(now);
+        return entity;
+    }
+
+    // 读取 agent 执行快照 JSON；数据库不可用时回退到内存缓存。
+    private String loadAgentResultJson(String caseId) {
+        try {
+            CaseAgentResultEntity entity = agentResultMapper.selectOne(
+                    new LambdaQueryWrapper<CaseAgentResultEntity>()
+                            .eq(CaseAgentResultEntity::getCaseId, caseId)
+            );
+            if (entity != null) {
+                return entity.getAgentResultJson();
+            }
+        } catch (Exception ignored) {
+            CaseAgentResultEntity entity = agentResultMemoryStore.get(caseId);
+            return entity == null ? "" : entity.getAgentResultJson();
+        }
+        CaseAgentResultEntity entity = agentResultMemoryStore.get(caseId);
+        return entity == null ? "" : entity.getAgentResultJson();
+    }
+
+    // 根据邮箱查找用户；数据库失败时回退到内存缓存。
     private AppUserEntity findUserByEmail(String email) {
         try {
             AppUserEntity user = appUserMapper.selectOne(
@@ -218,6 +284,7 @@ public class CaseGrpcService extends CaseRpcServiceGrpc.CaseRpcServiceImplBase {
         return userMemoryStore.get(email);
     }
 
+    // 将数据库用户实体转换为鉴权响应对象。
     private AuthUser toAuthUser(AppUserEntity user) {
         return AuthUser.newBuilder()
                 .setId(nullSafe(user.getUserId()))
@@ -229,14 +296,17 @@ public class CaseGrpcService extends CaseRpcServiceGrpc.CaseRpcServiceImplBase {
                 .build();
     }
 
+    // 归一化邮箱，避免大小写和首尾空格导致重复账户。
     private String normalizeEmail(String email) {
         return email == null ? "" : email.trim().toLowerCase(Locale.ROOT);
     }
 
+    // 校验邮箱格式。
     private boolean isValidEmail(String email) {
         return email != null && email.matches("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$");
     }
 
+    // 校验密码强度。
     private boolean isStrongPassword(String password) {
         return password != null
                 && password.length() >= 8
@@ -244,6 +314,7 @@ public class CaseGrpcService extends CaseRpcServiceGrpc.CaseRpcServiceImplBase {
                 && password.chars().anyMatch(Character::isDigit);
     }
 
+    // 将 null 字符串安全转换为空字符串，避免 proto setter 收到 null。
     private String nullSafe(String value) {
         return value == null ? "" : value;
     }

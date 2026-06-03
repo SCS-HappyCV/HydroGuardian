@@ -23,6 +23,15 @@ CREATE TABLE IF NOT EXISTS risk_case (
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS case_agent_result (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    case_id VARCHAR(64) NOT NULL UNIQUE,
+    agent_result_json JSON NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_case_agent_result_case_id (case_id)
+);
+
 USE file_service_db;
 
 CREATE TABLE IF NOT EXISTS file_asset (

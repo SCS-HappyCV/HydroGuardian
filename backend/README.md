@@ -46,7 +46,7 @@ docker tag docker.m.daocloud.io/minio/minio:latest minio/minio:latest
 ```bash
 curl -X POST http://localhost:8080/api/v1/tasks/execute \
   -H "Content-Type: application/json" \
-  -d "{\"taskText\":\"筛查近水扰动区域并排序\",\"sceneId\":\"demo-scene-001\"}"
+  -d "{\"taskText\":\"筛查近水扰动区域并排序\",\"sceneId\":\"demo-scene-001\",\"debug\":true}"
 ```
 
 更多规范与架构说明请看 `docs/README.md`。

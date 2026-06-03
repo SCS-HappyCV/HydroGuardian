@@ -2,11 +2,13 @@ syntax = "proto3";
 
 package hydro.case.v1;
 
+// case-service 暴露给 agent-service 的 case 创建与查询契约。
 service CaseRpcService {
   rpc CreateCase (CreateCaseRequest) returns (CaseReply);
   rpc GetCase (GetCaseRequest) returns (CaseReply);
 }
 
+// 创建风险 case 的请求；agent_result_json 保存完整智能体执行快照。
 message CreateCaseRequest {
   string title = 1;
   string task_text = 2;
@@ -14,12 +16,15 @@ message CreateCaseRequest {
   string risk_level = 4;
   string assignee = 5;
   string tags = 6;
+  string agent_result_json = 7;
 }
 
+// 查询单个风险 case 的请求。
 message GetCaseRequest {
   string case_id = 1;
 }
 
+// 风险 case 响应；agent_result_json 从 case_agent_result 表读取。
 message CaseReply {
   string case_id = 1;
   string title = 2;
@@ -30,4 +35,5 @@ message CaseReply {
   string assignee = 7;
   string tags = 8;
   string created_at = 9;
+  string agent_result_json = 10;
 }

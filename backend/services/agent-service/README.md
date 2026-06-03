@@ -118,11 +118,14 @@ api-gateway / grpc 客户端
 
 - 先去 `AGENT_SCENE_SAMPLE_DIR` 找 `{scene_id}.json` 或 `{sample_id}.json`
 - 找不到且 `AGENT_ALLOW_DEMO_SAMPLE=true` 时，回退到 demo sample
+- 如果命中的样本文件 JSON 损坏或根对象不是 JSON object，会直接失败，不再回退 demo
+- 进入 3D 执行前校验 `images / points_xyz / points_rgb / point_geometry_features / valid_point_mask`
+- trace 中会记录样本来源、shape 摘要、点数、是否 demo、是否包含变化检测图片引用
 
 这意味着：
 
 - 现在图编排和服务联通性可以独立调
-- 但真实推理上线前，必须把这里替换成正式预处理流水线
+- 但真实推理上线前，必须接入正式预处理流水线，并关闭 demo sample 回退
 
 #### 证据执行层
 
@@ -133,13 +136,23 @@ api-gateway / grpc 客户端
 - 发现或直连 `hydro-program3d`
 - 调 `/execute` 拿原始模型输出
 - 调 `/compile_evidence` 拿结构化 `EvidencePack`
+- 将 `/health / /execute / /compile_evidence` 的状态码、耗时、错误类型写入 trace
+- 对连接失败、超时和 5xx 做一次有限重试
+- 对 4xx、响应 JSON 异常和无效 `EvidencePack` 直接结构化失败
 
 当前约定很重要：
 
 - 下游风险节点不直接消费原始 tensor 输出
 - 下游只消费 `EvidencePack`
 
-这层出了错，也会构造一个失败态 `EvidencePack`，让后面的风险节点可以降级到 `REVIEW_REQUIRED`，而不是整条链路崩掉。
+这层出了错，也会构造一个失败态 `EvidencePack`，让后面的风险节点可以降级到 `REVIEW_REQUIRED`，而不是整条链路崩掉。失败态 `EvidencePack.raw_trace` 会包含：
+
+- `error_type`
+- `stage`
+- `status_code`
+- `duration_ms`
+- `base_url`
+- `request_summary`
 
 #### 风险与闭环层
 
@@ -151,7 +164,9 @@ api-gateway / grpc 客户端
 
 - `risk.py` 基于 `EvidencePack` 做可解释规则加权
 - `recommendation.py` 同时生成建议卡和工单卡
-- `case_file.py` 把摘要结果落到 case-service
+- `case_file.py` 构建 `agent_result_snapshot.v1`，完整快照通过 case-service 写入 `case_agent_result.agent_result_json`
+- `tags` 只保留风险类型、证据状态、样本摘要和快照存储位置等轻量索引信息
+- case-service 持久化失败不会阻断主结果，但会在返回中标记 `case_persistence_status=failed`
 
 注意：现在 recommendation 和 work order 还没拆节点，这是有意保留的 MVP 形态。
 
@@ -249,7 +264,8 @@ api-gateway / grpc 客户端
 #### case 没落库，但接口没报错
 
 这是当前设计使然。  
-`grpc_service.py` 里持久化失败只记 `errors`，不会阻断主结果返回。
+`grpc_service.py` 里持久化失败会记录 `errors`，不会阻断主结果返回。
+接口会返回 `case_persistence_status / case_persistence_error`；即使落库失败，agent-service 也会在本次响应的内部 `case_result` 中保留 `agentResultSnapshot`，便于调试链路回放。落库成功时，完整快照保存在 case-service 的 `case_agent_result.agent_result_json`。
 
 ### 7. 现在的边界，接手时不要误判
 
@@ -262,6 +278,7 @@ api-gateway / grpc 客户端
 - 证据编译
 - 风险卡 / 建议卡 / 工单卡生成
 - case 持久化
+- agent 执行快照构建，并通过 case-service 保存到 `case_agent_result` 数据表
 
 当前还明显是 MVP 的地方：
 
@@ -269,7 +286,9 @@ api-gateway / grpc 客户端
 - scene sample 还没有正式预处理服务
 - 风险评分还是规则版
 - recommendation 和 work order 还没彻底拆层
-- gRPC 返回给上游的是摘要，不是完整证据链对象
+- gRPC 返回给上游的是摘要和链路诊断字段，不是完整证据链对象
+
+完整的 MVP 升级清单见 [MVP_UPGRADE.md](</D:/py_project/HydroGuardian/backend/services/agent-service/MVP_UPGRADE.md>)。
 
 所以后续扩展时，优先做“替换节点内部实现”，尽量不要先打散整张图。
 
@@ -352,19 +371,32 @@ src/generated/
 {sample_id}.json
 ```
 
-样本至少应包含：
+样本至少应包含真实 JSON 数组，而不是 shape 字符串：
 
 ```json
 {
   "sample_id": "demo-001",
   "text": "find thin linear ditch near waterline and exclude road",
-  "images": "[3,H,W] or [B,3,H,W]",
-  "points_xyz": "[N,3] or [B,N,3]",
-  "points_rgb": "[N,3] or [B,N,3]",
-  "point_geometry_features": "[N,G] or [B,N,G]",
-  "valid_point_mask": "[N] or [B,N]"
+  "images": [
+    [[0.0, 0.1], [0.2, 0.3]],
+    [[0.0, 0.1], [0.2, 0.3]],
+    [[0.0, 0.1], [0.2, 0.3]]
+  ],
+  "points_xyz": [[0.0, 0.0, 0.0]],
+  "points_rgb": [[0.2, 0.3, 0.4]],
+  "point_geometry_features": [[0.1, 0.0, 0.2, 0.8]],
+  "valid_point_mask": [true]
 }
 ```
+
+校验规则：
+
+- `images`: `[3,H,W]` 或 `[B,3,H,W]`
+- `points_xyz`: `[N,3]` 或 `[B,N,3]`
+- `points_rgb`: `[N,3]` 或 `[B,N,3]`
+- `point_geometry_features`: `[N,G]` 或 `[B,N,G]`
+- `valid_point_mask`: `[N]` 或 `[B,N]`
+- `points_rgb / point_geometry_features / valid_point_mask` 的 batch 和点数必须与 `points_xyz` 一致
 
 如果是变化检测任务，可额外提供：
 
@@ -386,16 +418,28 @@ src/generated/
 
 ```bash
 grpcurl -plaintext \
-  -d '{"task_text":"find thin linear ditch near waterline and exclude road","scene_id":"demo-001"}' \
+  -d '{"task_text":"find thin linear ditch near waterline and exclude road","scene_id":"demo-001","debug":true}' \
   127.0.0.1:9091 \
   hydro.agent.v1.AgentRpcService/ExecuteTask
 ```
+
+`debug=true` 时，`ExecuteTask` 会返回完整 `trace`；无论是否开启 debug，返回体都会带上：
+
+- `execution_status`
+- `parser_source`
+- `evidence_status`
+- `review_required`
+- `trace_total`
+- `error_count`
+- `errors`
+- `case_persistence_status`
+- `case_persistence_error`
 
 ## 失败处理
 
 - 任务不可解析：进入 `REVIEW_REQUIRED` 或 `ABSTAINED`
 - 缺少场景样本：如果 `AGENT_ALLOW_DEMO_SAMPLE=false`，直接返回结构化失败
-- 3D 服务不可达或 `/execute` 失败：生成 `execution_failed` 形式的 `EvidencePack`
+- 3D 服务不可达、超时、4xx/5xx、响应 JSON 异常或 `EvidencePack` 无效：生成 `execution_failed` 形式的 `EvidencePack`
 - 证据不足、no-target 或拒答信号高：风险等级进入 `REVIEW_REQUIRED`
 - case-service 持久化失败：不阻断风险和建议返回，但会记录到 `errors`
 

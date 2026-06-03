@@ -1,8 +1,12 @@
+# agent-service 的共享状态与通用状态工具。
+# LangGraph 所有节点都围绕 AgentState 读写，本文件提供 trace/error 和失败证据包的统一格式。
+
 from __future__ import annotations
 
 from typing import Any, Dict, TypedDict
 
 
+# 整条智能体链路共享的状态结构。
 class AgentState(TypedDict):
     # 这就是整条 LangGraph 链路共享的一份“大上下文”。
     # 可以把它理解成一个会被各节点逐步补全的任务档案。
@@ -37,6 +41,7 @@ class AgentState(TypedDict):
     trace: list[Dict[str, Any]]
 
 
+# 追加一条过程 trace，用于回放系统执行了什么。
 def append_trace(state: AgentState, stage: str, message: str, data: Dict[str, Any] | None = None) -> None:
     # trace 用来记录“系统做了什么”，方便回放执行过程。
     item: Dict[str, Any] = {"stage": stage, "message": message}
@@ -45,6 +50,7 @@ def append_trace(state: AgentState, stage: str, message: str, data: Dict[str, An
     state["trace"].append(item)
 
 
+# 追加一条错误记录；错误不一定会中断整条链路。
 def append_error(state: AgentState, stage: str, message: str, data: Dict[str, Any] | None = None) -> None:
     # error 用来记录“哪里出了问题”，但很多错误不会直接中断整条链路。
     item: Dict[str, Any] = {"stage": stage, "message": message}
@@ -53,6 +59,7 @@ def append_error(state: AgentState, stage: str, message: str, data: Dict[str, An
     state["errors"].append(item)
 
 
+# 将外部服务返回的标量或单元素列表安全转成 float。
 def as_float(value: Any, default: float = 0.0) -> float:
     # 外部服务返回的数据里有时是标量，有时是单元素 list，
     # 这里统一转成 float，减少后面评分逻辑里的防御代码。
@@ -64,9 +71,13 @@ def as_float(value: Any, default: float = 0.0) -> float:
         return default
 
 
-def failure_evidence_pack(reason: str) -> Dict[str, Any]:
+# 构造失败态 EvidencePack，让下游风险和建议节点可以继续降级执行。
+def failure_evidence_pack(reason: str, details: Dict[str, Any] | None = None) -> Dict[str, Any]:
     # 失败时也返回一个“长得像 EvidencePack 的对象”。
     # 这样后续 risk / recommendation 节点还能继续跑降级逻辑。
+    raw_trace: Dict[str, Any] = {"failure_reason": reason}
+    if details:
+        raw_trace.update(details)
     return {
         "status": "execution_failed",
         "target_hit": False,
@@ -79,5 +90,5 @@ def failure_evidence_pack(reason: str) -> Dict[str, Any]:
         "abstain_probability": 1.0,
         "candidate_regions": [],
         "evidence_summary": [reason],
-        "raw_trace": {"failure_reason": reason},
+        "raw_trace": raw_trace,
     }
