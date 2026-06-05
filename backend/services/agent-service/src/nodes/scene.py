@@ -5,7 +5,13 @@
 from __future__ import annotations
 
 from clients.file_assets import FileAssetError
-from config import ALLOW_DEMO_SCENE_SAMPLE, SCENE_MANIFEST_DIR, SCENE_SAMPLE_DIR
+from clients.scene_manifest import SceneManifestServiceError, get_scene_manifest
+from config import (
+    ALLOW_DEMO_SCENE_SAMPLE,
+    SCENE_MANIFEST_DIR,
+    SCENE_MANIFEST_SERVICE_ENABLED,
+    SCENE_SAMPLE_DIR,
+)
 from scene_samples import (
     LoadedSceneSample,
     SceneManifestLoadError,
@@ -13,6 +19,7 @@ from scene_samples import (
     SceneSampleValidationError,
     build_demo_scene_sample,
     load_scene_sample_from_manifest,
+    load_scene_sample_from_manifest_payload,
     load_scene_sample_from_disk,
     summarize_scene_sample,
     validate_scene_sample,
@@ -20,8 +27,12 @@ from scene_samples import (
 from state import AgentState, append_error, append_trace
 
 
-# 按优先级解析样本来源：先读资产 manifest，再读磁盘样本，最后按配置回退到 demo 样本。
+# 按优先级解析样本来源：先查入库 manifest，再读本地 manifest / 样本，最后按配置回退到 demo 样本。
 async def _load_scene_sample(state: AgentState) -> LoadedSceneSample | None:
+    if SCENE_MANIFEST_SERVICE_ENABLED:
+        manifest_payload = await get_scene_manifest(state["scene_id"])
+        if manifest_payload is not None:
+            return await load_scene_sample_from_manifest_payload(state, manifest_payload)
     loaded = await load_scene_sample_from_manifest(state, SCENE_MANIFEST_DIR)
     if loaded is not None:
         return loaded
@@ -49,6 +60,15 @@ async def scene_data_adapter_node(state: AgentState) -> AgentState:
             "prepare_scene_sample.manifest",
             "failed to load scene asset manifest",
             {"path": str(exc.path), "reason": exc.reason},
+        )
+        return state
+    except SceneManifestServiceError as exc:
+        state["status"] = "FAILED"
+        append_error(
+            state,
+            "prepare_scene_sample.manifest_service",
+            "failed to query scene asset manifest",
+            {"reason": str(exc)},
         )
         return state
     except FileAssetError as exc:

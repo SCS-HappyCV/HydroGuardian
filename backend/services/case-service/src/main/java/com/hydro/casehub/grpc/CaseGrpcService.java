@@ -1,5 +1,5 @@
 // case-service 的 gRPC 服务实现。
-// 这里负责 case 主表、agent 执行快照表和用户鉴权请求的落库与兜底缓存。
+// 这里负责 case 主表、agent 执行快照表、场景资产清单和用户鉴权请求的落库与兜底缓存。
 package com.hydro.casehub.grpc;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
@@ -7,18 +7,23 @@ import com.hydro.casehub.auth.PasswordHasher;
 import com.hydro.casehub.entity.AppUserEntity;
 import com.hydro.casehub.entity.CaseAgentResultEntity;
 import com.hydro.casehub.entity.RiskCaseEntity;
+import com.hydro.casehub.entity.SceneAssetManifestEntity;
 import com.hydro.casehub.mapper.AppUserMapper;
 import com.hydro.casehub.mapper.CaseAgentResultMapper;
 import com.hydro.casehub.mapper.RiskCaseMapper;
+import com.hydro.casehub.mapper.SceneAssetManifestMapper;
 import com.hydro.grpc.casev1.AuthUser;
 import com.hydro.grpc.casev1.CaseReply;
 import com.hydro.grpc.casev1.CaseRpcServiceGrpc;
 import com.hydro.grpc.casev1.CreateCaseRequest;
+import com.hydro.grpc.casev1.CreateSceneManifestRequest;
 import com.hydro.grpc.casev1.GetCaseRequest;
+import com.hydro.grpc.casev1.GetSceneManifestRequest;
 import com.hydro.grpc.casev1.LoginUserReply;
 import com.hydro.grpc.casev1.LoginUserRequest;
 import com.hydro.grpc.casev1.RegisterUserReply;
 import com.hydro.grpc.casev1.RegisterUserRequest;
+import com.hydro.grpc.casev1.SceneManifestReply;
 import io.grpc.stub.StreamObserver;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Component;
@@ -30,26 +35,30 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
 @Component
-// 组合 case、agent_result 和用户三类能力的 gRPC 服务。
+// 组合 case、agent_result、场景清单和用户四类能力的 gRPC 服务。
 public class CaseGrpcService extends CaseRpcServiceGrpc.CaseRpcServiceImplBase {
 
     private final RiskCaseMapper mapper;
     private final CaseAgentResultMapper agentResultMapper;
+    private final SceneAssetManifestMapper sceneAssetManifestMapper;
     private final AppUserMapper appUserMapper;
     private final PasswordHasher passwordHasher;
     private final ConcurrentMap<String, RiskCaseEntity> memoryStore = new ConcurrentHashMap<>();
     private final ConcurrentMap<String, CaseAgentResultEntity> agentResultMemoryStore = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, SceneAssetManifestEntity> sceneManifestMemoryStore = new ConcurrentHashMap<>();
     private final ConcurrentMap<String, AppUserEntity> userMemoryStore = new ConcurrentHashMap<>();
 
-    // 注入 case 主表、agent 结果表、用户表和密码工具。
+    // 注入 case 主表、agent 结果表、场景清单表、用户表和密码工具。
     public CaseGrpcService(
             RiskCaseMapper mapper,
             CaseAgentResultMapper agentResultMapper,
+            SceneAssetManifestMapper sceneAssetManifestMapper,
             AppUserMapper appUserMapper,
             PasswordHasher passwordHasher
     ) {
         this.mapper = mapper;
         this.agentResultMapper = agentResultMapper;
+        this.sceneAssetManifestMapper = sceneAssetManifestMapper;
         this.appUserMapper = appUserMapper;
         this.passwordHasher = passwordHasher;
     }
@@ -94,6 +103,47 @@ public class CaseGrpcService extends CaseRpcServiceGrpc.CaseRpcServiceImplBase {
             return;
         }
         responseObserver.onNext(toReply(entity, loadAgentResultJson(entity.getCaseId())));
+        responseObserver.onCompleted();
+    }
+
+    @Override
+    // 创建或更新场景资产清单，供 agent-service 按 scene_id 找到真实样本资产。
+    public void createSceneManifest(
+            CreateSceneManifestRequest request,
+            StreamObserver<SceneManifestReply> responseObserver
+    ) {
+        String validationError = validateCreateSceneManifest(request);
+        if (!validationError.isBlank()) {
+            responseObserver.onError(GrpcServiceSupport.invalidArgument(validationError));
+            return;
+        }
+
+        SceneAssetManifestEntity entity = buildSceneManifestEntity(request);
+        upsertSceneManifest(entity);
+
+        responseObserver.onNext(toSceneManifestReply(entity));
+        responseObserver.onCompleted();
+    }
+
+    @Override
+    // 查询场景资产清单；未命中时明确返回 NOT_FOUND，方便 agent-service 回退本地清单。
+    public void getSceneManifest(
+            GetSceneManifestRequest request,
+            StreamObserver<SceneManifestReply> responseObserver
+    ) {
+        String sceneId = trimToEmpty(request.getSceneId());
+        if (sceneId.isBlank()) {
+            responseObserver.onError(GrpcServiceSupport.invalidArgument("scene_id is required"));
+            return;
+        }
+
+        SceneAssetManifestEntity entity = findSceneManifestBySceneId(sceneId);
+        if (entity == null) {
+            responseObserver.onError(GrpcServiceSupport.notFound("Scene manifest not found: " + sceneId));
+            return;
+        }
+
+        responseObserver.onNext(toSceneManifestReply(entity));
         responseObserver.onCompleted();
     }
 
@@ -268,6 +318,121 @@ public class CaseGrpcService extends CaseRpcServiceGrpc.CaseRpcServiceImplBase {
         return entity == null ? "" : entity.getAgentResultJson();
     }
 
+    // 校验场景清单创建请求，避免写入不可用的资产索引。
+    private String validateCreateSceneManifest(CreateSceneManifestRequest request) {
+        if (trimToEmpty(request.getSceneId()).isBlank()) {
+            return "scene_id is required";
+        }
+        if (trimToEmpty(request.getSceneSampleFileId()).isBlank()) {
+            return "scene_sample_file_id is required";
+        }
+        return "";
+    }
+
+    // 根据 gRPC 请求构建 scene_asset_manifest 表实体。
+    private SceneAssetManifestEntity buildSceneManifestEntity(CreateSceneManifestRequest request) {
+        LocalDateTime now = LocalDateTime.now();
+        String sceneId = trimToEmpty(request.getSceneId());
+        String sampleId = trimToEmpty(request.getSampleId());
+
+        SceneAssetManifestEntity entity = new SceneAssetManifestEntity();
+        entity.setSceneId(sceneId);
+        entity.setSampleId(sampleId.isBlank() ? sceneId : sampleId);
+        entity.setSceneSampleFileId(trimToEmpty(request.getSceneSampleFileId()));
+        entity.setImageFileId(trimToEmpty(request.getImageFileId()));
+        entity.setPointCloudFileId(trimToEmpty(request.getPointCloudFileId()));
+        entity.setPreImageFileId(trimToEmpty(request.getPreImageFileId()));
+        entity.setPostImageFileId(trimToEmpty(request.getPostImageFileId()));
+        entity.setPreprocessVersion(trimToEmpty(request.getPreprocessVersion()));
+        entity.setChecksumSha256(trimToEmpty(request.getChecksumSha256()));
+        entity.setSchemaVersion(defaultSceneManifestSchemaVersion(request.getSchemaVersion()));
+        entity.setCreatedAt(now);
+        entity.setUpdatedAt(now);
+        return entity;
+    }
+
+    // 插入或更新清单；数据库不可用时写入内存缓存，保持 MVP 联调可用。
+    private void upsertSceneManifest(SceneAssetManifestEntity entity) {
+        try {
+            SceneAssetManifestEntity existing = sceneAssetManifestMapper.selectOne(
+                    new LambdaQueryWrapper<SceneAssetManifestEntity>()
+                            .eq(SceneAssetManifestEntity::getSceneId, entity.getSceneId())
+            );
+            if (existing != null) {
+                entity.setId(existing.getId());
+                entity.setCreatedAt(existing.getCreatedAt());
+                sceneAssetManifestMapper.updateById(entity);
+            } else {
+                sceneAssetManifestMapper.insert(entity);
+            }
+            sceneManifestMemoryStore.put(entity.getSceneId(), entity);
+        } catch (DuplicateKeyException ex) {
+            retrySceneManifestUpdate(entity);
+        } catch (Exception ignored) {
+            sceneManifestMemoryStore.put(entity.getSceneId(), entity);
+        }
+    }
+
+    // 处理并发注册同一个 scene_id 时的唯一键冲突，尽量转换成更新语义。
+    private void retrySceneManifestUpdate(SceneAssetManifestEntity entity) {
+        try {
+            SceneAssetManifestEntity existing = sceneAssetManifestMapper.selectOne(
+                    new LambdaQueryWrapper<SceneAssetManifestEntity>()
+                            .eq(SceneAssetManifestEntity::getSceneId, entity.getSceneId())
+            );
+            if (existing == null) {
+                sceneManifestMemoryStore.put(entity.getSceneId(), entity);
+                return;
+            }
+            entity.setId(existing.getId());
+            entity.setCreatedAt(existing.getCreatedAt());
+            sceneAssetManifestMapper.updateById(entity);
+            sceneManifestMemoryStore.put(entity.getSceneId(), entity);
+        } catch (Exception ignored) {
+            sceneManifestMemoryStore.put(entity.getSceneId(), entity);
+        }
+    }
+
+    // 根据 scene_id 读取清单；数据库查询失败或未命中时回退内存缓存。
+    private SceneAssetManifestEntity findSceneManifestBySceneId(String sceneId) {
+        try {
+            SceneAssetManifestEntity entity = sceneAssetManifestMapper.selectOne(
+                    new LambdaQueryWrapper<SceneAssetManifestEntity>()
+                            .eq(SceneAssetManifestEntity::getSceneId, sceneId)
+            );
+            if (entity != null) {
+                return entity;
+            }
+        } catch (Exception ignored) {
+            return sceneManifestMemoryStore.get(sceneId);
+        }
+        return sceneManifestMemoryStore.get(sceneId);
+    }
+
+    // 将场景清单实体转换为 gRPC 响应。
+    private SceneManifestReply toSceneManifestReply(SceneAssetManifestEntity entity) {
+        return SceneManifestReply.newBuilder()
+                .setSceneId(nullSafe(entity.getSceneId()))
+                .setSampleId(nullSafe(entity.getSampleId()))
+                .setSceneSampleFileId(nullSafe(entity.getSceneSampleFileId()))
+                .setImageFileId(nullSafe(entity.getImageFileId()))
+                .setPointCloudFileId(nullSafe(entity.getPointCloudFileId()))
+                .setPreImageFileId(nullSafe(entity.getPreImageFileId()))
+                .setPostImageFileId(nullSafe(entity.getPostImageFileId()))
+                .setPreprocessVersion(nullSafe(entity.getPreprocessVersion()))
+                .setChecksumSha256(nullSafe(entity.getChecksumSha256()))
+                .setCreatedAt(entity.getCreatedAt() == null ? "" : entity.getCreatedAt().toString())
+                .setUpdatedAt(entity.getUpdatedAt() == null ? "" : entity.getUpdatedAt().toString())
+                .setSchemaVersion(defaultSceneManifestSchemaVersion(entity.getSchemaVersion()))
+                .build();
+    }
+
+    // 缺省清单版本，保证旧请求也能被 agent-service 正常归一化。
+    private String defaultSceneManifestSchemaVersion(String schemaVersion) {
+        String normalized = trimToEmpty(schemaVersion);
+        return normalized.isBlank() ? "scene_asset_manifest.v1" : normalized;
+    }
+
     // 根据邮箱查找用户；数据库失败时回退到内存缓存。
     private AppUserEntity findUserByEmail(String email) {
         try {
@@ -312,6 +477,11 @@ public class CaseGrpcService extends CaseRpcServiceGrpc.CaseRpcServiceImplBase {
                 && password.length() >= 8
                 && password.chars().anyMatch(Character::isUpperCase)
                 && password.chars().anyMatch(Character::isDigit);
+    }
+
+    // 清理字符串首尾空白，避免把空格写进业务主键。
+    private String trimToEmpty(String value) {
+        return value == null ? "" : value.trim();
     }
 
     // 将 null 字符串安全转换为空字符串，避免 proto setter 收到 null。

@@ -32,6 +32,24 @@ CREATE TABLE IF NOT EXISTS case_agent_result (
     INDEX idx_case_agent_result_case_id (case_id)
 );
 
+CREATE TABLE IF NOT EXISTS scene_asset_manifest (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    scene_id VARCHAR(128) NOT NULL UNIQUE,
+    sample_id VARCHAR(128) NOT NULL,
+    scene_sample_file_id VARCHAR(64) NOT NULL,
+    image_file_id VARCHAR(64),
+    point_cloud_file_id VARCHAR(64),
+    pre_image_file_id VARCHAR(64),
+    post_image_file_id VARCHAR(64),
+    preprocess_version VARCHAR(64),
+    checksum_sha256 CHAR(64),
+    schema_version VARCHAR(64) NOT NULL DEFAULT 'scene_asset_manifest.v1',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_scene_asset_manifest_scene_id (scene_id),
+    INDEX idx_scene_asset_manifest_sample_id (sample_id)
+);
+
 USE file_service_db;
 
 CREATE TABLE IF NOT EXISTS file_asset (

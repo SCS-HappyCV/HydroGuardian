@@ -116,7 +116,9 @@ api-gateway / grpc 客户端
 
 当前策略：
 
-- 先去 `AGENT_SCENE_MANIFEST_DIR` 找 `{scene_id}.json` 或 `{sample_id}.json`，按 manifest 中的 `sceneSampleFileId` 从 file-service 下载 `SceneTensorSample`
+- 先向 case-service 查询 `scene_asset_manifest`，按 `sceneId` 找到 `sceneSampleFileId`
+- 如果 case-service 没有清单，再去 `AGENT_SCENE_MANIFEST_DIR` 找 `{scene_id}.json` 或 `{sample_id}.json`
+- 命中 manifest 后，按 manifest 中的 `sceneSampleFileId` 从 file-service 下载 `SceneTensorSample`
 - 如果没有 manifest，再去 `AGENT_SCENE_SAMPLE_DIR` 找本地 `{scene_id}.json` 或 `{sample_id}.json`
 - 找不到且 `AGENT_ALLOW_DEMO_SAMPLE=true` 时，回退到 demo sample
 - 如果命中的样本文件 JSON 损坏或根对象不是 JSON object，会直接失败，不再回退 demo
@@ -224,7 +226,7 @@ api-gateway / grpc 客户端
 - `change-detection`  
   只在任务有时间变化意图且 sample 带 `pre/post image` 时触发。
 - `case-service`  
-  负责 case 持久化；挂掉不会阻断 agent 生成风险和建议。
+  负责 case 持久化和 `scene_asset_manifest` 查询；case 落库失败不会阻断 agent 生成风险和建议，场景清单查询异常会让样本准备阶段失败。
 - `file-service`  
   负责把前端上传的图像、点云、样本 JSON 和证据产物保存到 MinIO，并在 `file_asset` 中登记 `fileId / objectKey / fileType / checksumSha256`。
 
@@ -343,6 +345,7 @@ src/generated/
 | `CASE_SERVICE_NAME` | `case-service` | case-service Nacos 服务名 |
 | `FILE_SERVICE_NAME` | `file-service` | file-service Nacos 服务名 |
 | `CASE_GRPC_ADDR` | 空 | case-service 直连地址，配置后跳过 Nacos |
+| `CASE_GRPC_TIMEOUT_SECONDS` | `20` | case-service gRPC 调用默认超时时间 |
 | `FILE_GRPC_ADDR` | 空 | file-service 直连地址，配置后跳过 Nacos |
 | `FILE_GRPC_MAX_MESSAGE_BYTES` | `104857600` | file-service 大文件/样本下载的 gRPC 消息上限 |
 | `FILE_GRPC_TIMEOUT_SECONDS` | `30` | file-service 查询/下载超时时间 |
@@ -363,12 +366,44 @@ src/generated/
 | `CHANGE_DETECTION_URL` | 空 | change-detection 直连 URL，compose 中配置为 `http://change-detection:8011` |
 | `CHANGE_DETECTION_SERVICE_NAME` | `change-detection` | change-detection Nacos 服务名 |
 | `AGENT_SCENE_MANIFEST_DIR` | `/app/data/scene_manifests` | scene 资产 manifest 目录，优先级高于本地样本目录 |
+| `AGENT_SCENE_MANIFEST_SERVICE_ENABLED` | `true` | 是否优先从 case-service 查询入库的 scene 资产 manifest |
+| `AGENT_SCENE_MANIFEST_SERVICE_TIMEOUT_SECONDS` | `CASE_GRPC_TIMEOUT_SECONDS` | 查询 scene 资产 manifest 的 gRPC 超时时间 |
 | `AGENT_SCENE_SAMPLE_DIR` | `/app/data/scene_samples` | 预处理后场景样本 JSON 目录 |
 | `AGENT_ALLOW_DEMO_SAMPLE` | `true` | 缺少场景样本时是否生成 demo sample |
 
 ## 场景样本
 
-`hydro-program3d /execute` 不读取原始文件路径，调用方必须提供预处理后的 JSON 张量。推荐链路是：前端先上传图像、点云和预处理后的 `SceneTensorSample JSON` 到 file-service/MinIO，然后在 `AGENT_SCENE_MANIFEST_DIR` 放置资产清单：
+`hydro-program3d /execute` 不读取原始文件路径，调用方必须提供预处理后的 JSON 张量。推荐链路是：
+
+1. 前端先通过 `api-gateway POST /api/v1/files` 上传图像、点云和预处理后的 `SceneTensorSample JSON`
+2. 网关转发给 file-service 保存到 MinIO，并返回各自的 `fileId`
+3. 前端通过 `api-gateway POST /api/v1/scenes/{sceneId}/manifest` 注册清单
+4. agent-service 执行任务时优先从 case-service 查询该清单，再按 `sceneSampleFileId` 下载样本 JSON
+
+注册清单示例：
+
+```bash
+curl -X POST http://localhost:8080/api/v1/scenes/demo-scene-001/manifest \
+  -H "Content-Type: application/json" \
+  -d '{
+    "sampleId": "demo-sample-001",
+    "sceneSampleFileId": "file-scene-sample-json",
+    "imageFileId": "file-ortho-image",
+    "pointCloudFileId": "file-point-cloud",
+    "preImageFileId": "file-pre-image",
+    "postImageFileId": "file-post-image",
+    "preprocessVersion": "preprocess-v1",
+    "schemaVersion": "scene_asset_manifest.v1"
+  }'
+```
+
+查询清单示例：
+
+```bash
+curl http://localhost:8080/api/v1/scenes/demo-scene-001/manifest
+```
+
+本地 manifest 文件仍作为离线联调兜底。可在 `AGENT_SCENE_MANIFEST_DIR` 放置资产清单：
 
 ```json
 {

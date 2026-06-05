@@ -25,7 +25,7 @@ class SceneManifestLoadError(ValueError):
 @dataclass(frozen=True)
 class SceneAssetManifest:
     raw: Dict[str, Any]
-    source_path: Path
+    source_path: Path | None
     schema_version: str
     scene_id: str
     sample_id: str
@@ -81,13 +81,17 @@ def _asset_file_id(payload: Dict[str, Any], role: str, *direct_keys: str) -> str
     return ""
 
 
-# 将原始 JSON 清单归一化为 SceneAssetManifest。
-def _normalize_manifest(payload: Dict[str, Any], path: Path, state: AgentState) -> SceneAssetManifest:
+# 将任意来源的清单字典归一化为 SceneAssetManifest。
+def normalize_scene_manifest_payload(
+    payload: Dict[str, Any],
+    state: AgentState,
+    source_path: Path | None = None,
+) -> SceneAssetManifest:
     scene_id = _first_string(payload, "scene_id", "sceneId") or state["scene_id"]
     sample_id = _first_string(payload, "sample_id", "sampleId") or state["sample_id"]
     manifest = SceneAssetManifest(
         raw=payload,
-        source_path=path,
+        source_path=source_path,
         schema_version=_first_string(payload, "schema_version", "schemaVersion") or "scene_asset_manifest.v1",
         scene_id=scene_id,
         sample_id=sample_id,
@@ -111,8 +115,13 @@ def _normalize_manifest(payload: Dict[str, Any], path: Path, state: AgentState) 
         checksum_sha256=_first_string(payload, "checksum_sha256", "checksumSha256", "checksum"),
     )
     if not manifest.scene_sample_file_id:
-        raise SceneManifestLoadError(path, "scene_sample_file_id is required")
+        raise SceneManifestLoadError(source_path or Path("case-service"), "scene_sample_file_id is required")
     return manifest
+
+
+# 将磁盘 JSON 清单归一化为 SceneAssetManifest。
+def _normalize_manifest(payload: Dict[str, Any], path: Path, state: AgentState) -> SceneAssetManifest:
+    return normalize_scene_manifest_payload(payload, state, path)
 
 
 # 从配置目录读取 scene_id 或 sample_id 对应的资产清单。

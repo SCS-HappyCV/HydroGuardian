@@ -6,13 +6,17 @@ option java_multiple_files = true;
 option java_package = "com.hydro.grpc.casev1";
 option java_outer_classname = "CaseProto";
 
+// case-service 的 case、场景资产清单与用户鉴权 gRPC 契约。
 service CaseRpcService {
   rpc CreateCase (CreateCaseRequest) returns (CaseReply);
   rpc GetCase (GetCaseRequest) returns (CaseReply);
+  rpc CreateSceneManifest (CreateSceneManifestRequest) returns (SceneManifestReply);
+  rpc GetSceneManifest (GetSceneManifestRequest) returns (SceneManifestReply);
   rpc RegisterUser (RegisterUserRequest) returns (RegisterUserReply);
   rpc LoginUser (LoginUserRequest) returns (LoginUserReply);
 }
 
+// 创建风险 case 的请求；agent_result_json 保存完整智能体执行快照。
 message CreateCaseRequest {
   string title = 1;
   string task_text = 2;
@@ -20,12 +24,15 @@ message CreateCaseRequest {
   string risk_level = 4;
   string assignee = 5;
   string tags = 6;
+  string agent_result_json = 7;
 }
 
+// 查询单个风险 case 的请求。
 message GetCaseRequest {
   string case_id = 1;
 }
 
+// 风险 case 响应；agent_result_json 从 case_agent_result 表读取。
 message CaseReply {
   string case_id = 1;
   string title = 2;
@@ -36,8 +43,45 @@ message CaseReply {
   string assignee = 7;
   string tags = 8;
   string created_at = 9;
+  string agent_result_json = 10;
 }
 
+// 创建或更新场景资产清单；scene_sample_file_id 指向预处理后的 SceneTensorSample JSON。
+message CreateSceneManifestRequest {
+  string scene_id = 1;
+  string sample_id = 2;
+  string scene_sample_file_id = 3;
+  string image_file_id = 4;
+  string point_cloud_file_id = 5;
+  string pre_image_file_id = 6;
+  string post_image_file_id = 7;
+  string preprocess_version = 8;
+  string checksum_sha256 = 9;
+  string schema_version = 10;
+}
+
+// 按 scene_id 查询场景资产清单。
+message GetSceneManifestRequest {
+  string scene_id = 1;
+}
+
+// 场景资产清单响应；字段命名对齐 agent-service 的 manifest 读取逻辑。
+message SceneManifestReply {
+  string scene_id = 1;
+  string sample_id = 2;
+  string scene_sample_file_id = 3;
+  string image_file_id = 4;
+  string point_cloud_file_id = 5;
+  string pre_image_file_id = 6;
+  string post_image_file_id = 7;
+  string preprocess_version = 8;
+  string checksum_sha256 = 9;
+  string created_at = 10;
+  string updated_at = 11;
+  string schema_version = 12;
+}
+
+// 注册用户请求。
 message RegisterUserRequest {
   string name = 1;
   string email = 2;
@@ -46,18 +90,21 @@ message RegisterUserRequest {
   bool agree_terms = 5;
 }
 
+// 注册用户响应。
 message RegisterUserReply {
   string user_id = 1;
   string email = 2;
   string created_at = 3;
 }
 
+// 登录用户请求。
 message LoginUserRequest {
   string email = 1;
   string password = 2;
   bool remember_me = 3;
 }
 
+// 登录成功后返回给网关的用户摘要。
 message AuthUser {
   string id = 1;
   string name = 2;
@@ -67,6 +114,7 @@ message AuthUser {
   string avatar_url = 6;
 }
 
+// 登录用户响应。
 message LoginUserReply {
   string token_subject = 1;
   int64 expires_in = 2;

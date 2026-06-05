@@ -10,7 +10,7 @@ from clients.file_assets import download_json_file, get_file_info
 from state import AgentState
 
 from .loader import LoadedSceneSample
-from .manifest import SceneAssetManifest, load_scene_manifest_from_disk
+from .manifest import SceneAssetManifest, load_scene_manifest_from_disk, normalize_scene_manifest_payload
 
 
 # 查询 manifest 中引用的所有文件资产元数据。
@@ -29,6 +29,7 @@ def _attach_manifest_metadata(
     sample: Dict[str, Any],
     state: AgentState,
     manifest: SceneAssetManifest,
+    manifest_source: str,
     scene_sample_file: Dict[str, Any],
     source_files: Dict[str, Dict[str, Any]],
 ) -> Dict[str, Any]:
@@ -46,11 +47,12 @@ def _attach_manifest_metadata(
     metadata.update(
         {
             "agent_sample_source": "manifest",
+            "manifest_source": manifest_source,
             "is_demo_sample": False,
             "scene_id": manifest.scene_id,
             "sample_id": manifest.sample_id,
             "manifest_schema_version": manifest.schema_version,
-            "manifest_path": str(manifest.source_path),
+            "manifest_path": str(manifest.source_path) if manifest.source_path is not None else "",
             "preprocess_version": manifest.preprocess_version,
             "manifest_created_at": manifest.created_at,
             "manifest_checksum_sha256": manifest.checksum_sha256,
@@ -85,6 +87,7 @@ async def load_scene_sample_from_manifest(
         sample=sample,
         state=state,
         manifest=manifest,
+        manifest_source="disk",
         scene_sample_file=scene_sample_file,
         source_files=source_files,
     )
@@ -92,5 +95,29 @@ async def load_scene_sample_from_manifest(
         sample=sample,
         source="manifest",
         source_path=manifest.source_path,
+        manifest=manifest.raw,
+    )
+
+
+# 按 case-service 返回的 manifest 字典下载 SceneTensorSample JSON。
+async def load_scene_sample_from_manifest_payload(
+    state: AgentState,
+    payload: Dict[str, Any],
+) -> LoadedSceneSample:
+    manifest = normalize_scene_manifest_payload(payload, state)
+    scene_sample_file, sample = await download_json_file(manifest.scene_sample_file_id)
+    source_files = await _resolve_source_files(manifest)
+    sample = _attach_manifest_metadata(
+        sample=sample,
+        state=state,
+        manifest=manifest,
+        manifest_source="case-service",
+        scene_sample_file=scene_sample_file,
+        source_files=source_files,
+    )
+    return LoadedSceneSample(
+        sample=sample,
+        source="manifest_service",
+        source_path=None,
         manifest=manifest.raw,
     )
