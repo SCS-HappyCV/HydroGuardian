@@ -24,6 +24,8 @@ CASE_SERVICE_NAME = os.getenv("CASE_SERVICE_NAME", "case-service")
 FILE_SERVICE_NAME = os.getenv("FILE_SERVICE_NAME", "file-service")
 CASE_GRPC_ADDR = os.getenv("CASE_GRPC_ADDR", "")
 FILE_GRPC_ADDR = os.getenv("FILE_GRPC_ADDR", "")
+FILE_GRPC_MAX_MESSAGE_BYTES = int(os.getenv("FILE_GRPC_MAX_MESSAGE_BYTES", "104857600"))
+FILE_GRPC_TIMEOUT_SECONDS = float(os.getenv("FILE_GRPC_TIMEOUT_SECONDS", "30"))
 
 HYDRO_PROGRAM3D_SERVICE_NAME = os.getenv("HYDRO_PROGRAM3D_SERVICE_NAME", "hydro-program3d")
 HYDRO_PROGRAM3D_URL = os.getenv("HYDRO_PROGRAM3D_URL", "").rstrip("/")
@@ -65,6 +67,7 @@ CHANGE_DETECTION_URL = os.getenv("CHANGE_DETECTION_URL", "").rstrip("/")
 CHANGE_DETECTION_TIMEOUT_SECONDS = float(os.getenv("CHANGE_DETECTION_TIMEOUT_SECONDS", "60"))
 
 SCENE_SAMPLE_DIR = Path(os.getenv("AGENT_SCENE_SAMPLE_DIR", "/app/data/scene_samples"))
+SCENE_MANIFEST_DIR = Path(os.getenv("AGENT_SCENE_MANIFEST_DIR", "/app/data/scene_manifests"))
 ALLOW_DEMO_SCENE_SAMPLE = os.getenv("AGENT_ALLOW_DEMO_SAMPLE", "true").lower() == "true"
 
 NACOS_SERVER_ADDR = os.getenv("NACOS_SERVER_ADDR", "localhost:8848")

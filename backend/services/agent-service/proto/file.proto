@@ -6,6 +6,7 @@ package hydro.file.v1;
 service FileRpcService {
   rpc UploadFile (UploadFileRequest) returns (FileReply);
   rpc GetFile (GetFileRequest) returns (FileReply);
+  rpc DownloadFile (GetFileRequest) returns (DownloadFileReply);
 }
 
 // 上传文件请求；file_type 用于区分图像、点云、样本和证据产物。
@@ -31,4 +32,10 @@ message FileReply {
   string object_key = 6;
   string file_type = 7;
   string checksum_sha256 = 8;
+}
+
+// 文件下载响应；主要供后端服务读取 scene_sample JSON 等小型结构化资产。
+message DownloadFileReply {
+  FileReply file = 1;
+  bytes content = 2;
 }

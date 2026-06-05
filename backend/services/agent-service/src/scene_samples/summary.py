@@ -35,6 +35,9 @@ def summarize_scene_sample(
     metadata = sample.get("metadata")
     if not isinstance(metadata, dict):
         metadata = {}
+    source_files = metadata.get("source_files") or sample.get("source_files")
+    if not isinstance(source_files, dict):
+        source_files = {}
 
     # 对 [N,3] 点张量，len(shape) 为 2；对 [B,N,3]，len(shape) 为 3。
     point_count = points_shape[-2] if len(points_shape) >= 2 else 0
@@ -54,9 +57,23 @@ def summarize_scene_sample(
         "point_count": point_count,
         "batch_size": batch_size,
         "geometry_feature_dim": geometry_feature_dim,
-        "has_pre_image": bool(sample.get("pre_image_path")),
-        "has_post_image": bool(sample.get("post_image_path")),
+        "has_pre_image": bool(sample.get("pre_image_path") or sample.get("pre_image_url")),
+        "has_post_image": bool(sample.get("post_image_path") or sample.get("post_image_url")),
+        "preprocess_version": metadata.get("preprocess_version", ""),
+        "checksum_sha256": metadata.get("checksum_sha256", ""),
+        "source_file_roles": sorted(source_files.keys()),
     }
+    if source_files:
+        summary["source_files"] = {
+            role: {
+                "fileId": info.get("fileId", ""),
+                "objectKey": info.get("objectKey", ""),
+                "fileType": info.get("fileType", ""),
+                "checksumSha256": info.get("checksumSha256", ""),
+            }
+            for role, info in source_files.items()
+            if isinstance(info, dict)
+        }
     if source_path is not None:
         summary["source_path"] = str(source_path)
     return summary

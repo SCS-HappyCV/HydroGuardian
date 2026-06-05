@@ -3,6 +3,7 @@
 package com.hydro.filesvc.storage;
 
 import io.minio.BucketExistsArgs;
+import io.minio.GetObjectArgs;
 import io.minio.GetPresignedObjectUrlArgs;
 import io.minio.MakeBucketArgs;
 import io.minio.MinioClient;
@@ -71,6 +72,18 @@ public class MinioObjectStorage {
             return "";
         }
         return buildDownloadUrl(objectKey);
+    }
+
+    // 从 MinIO 读取对象内容，供后端服务通过 gRPC 获取结构化资产。
+    public byte[] getObject(String objectKey) {
+        try (var stream = minioClient.getObject(GetObjectArgs.builder()
+                .bucket(bucket)
+                .object(objectKey)
+                .build())) {
+            return stream.readAllBytes();
+        } catch (Exception exc) {
+            throw new IllegalStateException("failed to download object from MinIO", exc);
+        }
     }
 
     // 首次上传前确保 bucket 存在；成功后用内存标记避免每次重复检查。

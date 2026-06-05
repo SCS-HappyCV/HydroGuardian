@@ -27,6 +27,32 @@ REQUIRED_TENSOR_FIELDS = [
 ]
 
 
+# 校验 manifest 来源样本必须携带可追溯资产元数据。
+def _validate_manifest_metadata(sample: Dict[str, Any], issues: list[str]) -> None:
+    metadata = sample.get("metadata")
+    if not isinstance(metadata, dict):
+        metadata = {}
+    if metadata.get("agent_sample_source") != "manifest":
+        return
+
+    if not isinstance(sample.get("sample_id"), str) or not sample.get("sample_id"):
+        issues.append("manifest sample must have sample_id")
+    if not (isinstance(sample.get("scene_id"), str) and sample.get("scene_id")) and not metadata.get("scene_id"):
+        issues.append("manifest sample must have scene_id")
+    if not metadata.get("preprocess_version"):
+        issues.append("manifest sample metadata.preprocess_version is required")
+    source_files = metadata.get("source_files") or sample.get("source_files")
+    if not isinstance(source_files, dict) or not source_files:
+        issues.append("manifest sample source_files is required")
+    else:
+        scene_sample = source_files.get("scene_sample")
+        if not isinstance(scene_sample, dict) or not scene_sample.get("fileId"):
+            issues.append("manifest sample source_files.scene_sample.fileId is required")
+    checksum = metadata.get("checksum_sha256")
+    if not isinstance(checksum, str) or len(checksum) != 64:
+        issues.append("manifest sample metadata.checksum_sha256 must be a SHA-256 hex string")
+
+
 # 将 [N,D] 和 [B,N,D] 点张量归一成可比较的 (B,N) 布局。
 def _point_layout(shape: list[int], *, final_dim: int | None = None) -> tuple[int, int] | None:
     if len(shape) == 2:
@@ -81,6 +107,8 @@ def validate_scene_sample(sample: Dict[str, Any]) -> None:
 
     if issues:
         raise SceneSampleValidationError(issues)
+
+    _validate_manifest_metadata(sample, issues)
 
     # 这里有意只做结构性 shape 检查；数值 dtype/range 检查应放到正式预处理服务中。
     image_shape = infer_shape(sample["images"])

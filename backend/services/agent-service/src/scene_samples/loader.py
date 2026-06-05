@@ -18,6 +18,7 @@ class LoadedSceneSample:
     sample: Dict[str, Any]
     source: str
     source_path: Path | None = None
+    manifest: Dict[str, Any] | None = None
 
 
 # 当命中的样本文件存在但不能安全使用时抛出。

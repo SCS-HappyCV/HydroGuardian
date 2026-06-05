@@ -7,7 +7,8 @@ from __future__ import annotations
 import grpc
 
 from agent_graph import graph
-from clients.case_file import build_persistence_failure_result, get_file_info, persist_case
+from clients.case_file import build_persistence_failure_result, persist_case
+from clients.file_assets import get_file_info
 from generated import agent_pb2, agent_pb2_grpc
 from responses import build_execute_task_reply
 from state import AgentState, append_error

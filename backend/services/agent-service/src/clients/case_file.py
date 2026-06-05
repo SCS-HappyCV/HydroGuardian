@@ -6,11 +6,11 @@ from __future__ import annotations
 import json
 from typing import Any, Dict
 
-import grpc_client
 from case_persistence import build_agent_result_snapshot, build_case_tags_payload, parse_case_tags
-from config import CASE_GRPC_ADDR, CASE_SERVICE_NAME, FILE_GRPC_ADDR, FILE_SERVICE_NAME
+from config import CASE_GRPC_ADDR, CASE_SERVICE_NAME
 from discovery import resolve_grpc_target
-from generated import case_pb2, case_pb2_grpc, file_pb2, file_pb2_grpc
+from generated import case_pb2, case_pb2_grpc
+import grpc_client
 from state import AgentState, append_trace
 
 
@@ -114,22 +114,3 @@ async def persist_case(state: AgentState) -> Dict[str, Any]:
         },
     )
     return result
-
-
-# 查询 file-service 中的文件元数据。
-async def get_file_info(file_id: str) -> Dict[str, Any]:
-    request = file_pb2.GetFileRequest(file_id=file_id)
-    target = await resolve_grpc_target(FILE_SERVICE_NAME, FILE_GRPC_ADDR)
-    async with grpc_client.open_channel(target) as channel:
-        stub = file_pb2_grpc.FileRpcServiceStub(channel)
-        reply = await stub.GetFile(request, timeout=10)
-    return {
-        "fileId": reply.file_id,
-        "fileName": reply.file_name,
-        "contentType": reply.content_type,
-        "size": reply.size,
-        "downloadUrl": reply.download_url,
-        "objectKey": reply.object_key,
-        "fileType": reply.file_type,
-        "checksumSha256": reply.checksum_sha256,
-    }

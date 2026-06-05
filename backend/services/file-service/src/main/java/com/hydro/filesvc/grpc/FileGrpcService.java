@@ -2,6 +2,7 @@
 // 负责接收上传请求、写入 MinIO、保存元数据，并支持按 fileId 查询资产信息。
 package com.hydro.filesvc.grpc;
 
+import com.google.protobuf.ByteString;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.hydro.filesvc.entity.FileAssetEntity;
 import com.hydro.filesvc.mapper.FileAssetMapper;
@@ -13,6 +14,7 @@ import com.hydro.grpc.filev1.FileReply;
 import com.hydro.grpc.filev1.FileRpcServiceGrpc;
 import com.hydro.grpc.filev1.GetFileRequest;
 import com.hydro.grpc.filev1.UploadFileRequest;
+import com.hydro.grpc.filev1.DownloadFileReply;
 import io.grpc.stub.StreamObserver;
 import org.springframework.stereotype.Component;
 
@@ -78,18 +80,7 @@ public class FileGrpcService extends FileRpcServiceGrpc.FileRpcServiceImplBase {
     @Override
     // 按 fileId 查询文件资产元数据。
     public void getFile(GetFileRequest request, StreamObserver<FileReply> responseObserver) {
-        FileAssetEntity entity = null;
-        try {
-            entity = mapper.selectOne(
-                    new LambdaQueryWrapper<FileAssetEntity>()
-                            .eq(FileAssetEntity::getFileId, request.getFileId())
-            );
-        } catch (Exception ignored) {
-            entity = memoryStore.get(request.getFileId());
-        }
-        if (entity == null) {
-            entity = memoryStore.get(request.getFileId());
-        }
+        FileAssetEntity entity = findEntity(request.getFileId());
         if (entity == null) {
             responseObserver.onError(GrpcServiceSupport.notFound("file not found: " + request.getFileId()));
             return;
@@ -97,6 +88,26 @@ public class FileGrpcService extends FileRpcServiceGrpc.FileRpcServiceImplBase {
 
         responseObserver.onNext(toReply(entity, objectStorage.downloadUrlFor(entity.getObjectKey())));
         responseObserver.onCompleted();
+    }
+
+    @Override
+    // 下载文件内容；主要给 agent-service 读取 scene_sample JSON 使用。
+    public void downloadFile(GetFileRequest request, StreamObserver<DownloadFileReply> responseObserver) {
+        FileAssetEntity entity = findEntity(request.getFileId());
+        if (entity == null) {
+            responseObserver.onError(GrpcServiceSupport.notFound("file not found: " + request.getFileId()));
+            return;
+        }
+        try {
+            byte[] content = objectStorage.getObject(entity.getObjectKey());
+            responseObserver.onNext(DownloadFileReply.newBuilder()
+                    .setFile(toReply(entity, objectStorage.downloadUrlFor(entity.getObjectKey())))
+                    .setContent(ByteString.copyFrom(content))
+                    .build());
+            responseObserver.onCompleted();
+        } catch (Exception ex) {
+            responseObserver.onError(GrpcServiceSupport.internal("file download failed", ex));
+        }
     }
 
     // 根据上传请求和存储结果构造元数据实体。
@@ -115,6 +126,23 @@ public class FileGrpcService extends FileRpcServiceGrpc.FileRpcServiceImplBase {
         entity.setChecksumSha256(storedObject.checksumSha256());
         entity.setSize(storedObject.size());
         entity.setCreatedAt(LocalDateTime.now());
+        return entity;
+    }
+
+    // 从数据库或内存兜底缓存中查找文件资产实体。
+    private FileAssetEntity findEntity(String fileId) {
+        FileAssetEntity entity = null;
+        try {
+            entity = mapper.selectOne(
+                    new LambdaQueryWrapper<FileAssetEntity>()
+                            .eq(FileAssetEntity::getFileId, fileId)
+            );
+        } catch (Exception ignored) {
+            entity = memoryStore.get(fileId);
+        }
+        if (entity == null) {
+            entity = memoryStore.get(fileId);
+        }
         return entity;
     }
 

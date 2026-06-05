@@ -116,11 +116,12 @@ api-gateway / grpc 客户端
 
 当前策略：
 
-- 先去 `AGENT_SCENE_SAMPLE_DIR` 找 `{scene_id}.json` 或 `{sample_id}.json`
+- 先去 `AGENT_SCENE_MANIFEST_DIR` 找 `{scene_id}.json` 或 `{sample_id}.json`，按 manifest 中的 `sceneSampleFileId` 从 file-service 下载 `SceneTensorSample`
+- 如果没有 manifest，再去 `AGENT_SCENE_SAMPLE_DIR` 找本地 `{scene_id}.json` 或 `{sample_id}.json`
 - 找不到且 `AGENT_ALLOW_DEMO_SAMPLE=true` 时，回退到 demo sample
 - 如果命中的样本文件 JSON 损坏或根对象不是 JSON object，会直接失败，不再回退 demo
 - 进入 3D 执行前校验 `images / points_xyz / points_rgb / point_geometry_features / valid_point_mask`
-- trace 中会记录样本来源、shape 摘要、点数、是否 demo、是否包含变化检测图片引用
+- trace 中会记录样本来源、shape 摘要、点数、是否 demo、是否包含变化检测图片引用、来源文件 `fileId/objectKey/checksum`
 
 这意味着：
 
@@ -343,6 +344,8 @@ src/generated/
 | `FILE_SERVICE_NAME` | `file-service` | file-service Nacos 服务名 |
 | `CASE_GRPC_ADDR` | 空 | case-service 直连地址，配置后跳过 Nacos |
 | `FILE_GRPC_ADDR` | 空 | file-service 直连地址，配置后跳过 Nacos |
+| `FILE_GRPC_MAX_MESSAGE_BYTES` | `104857600` | file-service 大文件/样本下载的 gRPC 消息上限 |
+| `FILE_GRPC_TIMEOUT_SECONDS` | `30` | file-service 查询/下载超时时间 |
 | `HYDRO_PROGRAM3D_URL` | 空 | hydro-program3d 直连 URL，compose 中配置为 `http://hydro-program3d:8093` |
 | `HYDRO_PROGRAM3D_SERVICE_NAME` | `hydro-program3d` | hydro-program3d Nacos 服务名 |
 | `HYDRO_PROGRAM3D_CHECKPOINT_NAME` | `hydro_program3d_demo.pth` | `/execute` 使用的 checkpoint |
@@ -359,17 +362,37 @@ src/generated/
 | `DASHSCOPE_API_KEY` | 空 | 可选，`OPENAI_API_KEY` 未配置时用于 DashScope/Qwen 兼容调用 |
 | `CHANGE_DETECTION_URL` | 空 | change-detection 直连 URL，compose 中配置为 `http://change-detection:8011` |
 | `CHANGE_DETECTION_SERVICE_NAME` | `change-detection` | change-detection Nacos 服务名 |
+| `AGENT_SCENE_MANIFEST_DIR` | `/app/data/scene_manifests` | scene 资产 manifest 目录，优先级高于本地样本目录 |
 | `AGENT_SCENE_SAMPLE_DIR` | `/app/data/scene_samples` | 预处理后场景样本 JSON 目录 |
 | `AGENT_ALLOW_DEMO_SAMPLE` | `true` | 缺少场景样本时是否生成 demo sample |
 
 ## 场景样本
 
-`hydro-program3d /execute` 不读取原始文件路径，调用方必须提供预处理后的 JSON 张量。`agent-service` 会优先从 `AGENT_SCENE_SAMPLE_DIR` 读取：
+`hydro-program3d /execute` 不读取原始文件路径，调用方必须提供预处理后的 JSON 张量。推荐链路是：前端先上传图像、点云和预处理后的 `SceneTensorSample JSON` 到 file-service/MinIO，然后在 `AGENT_SCENE_MANIFEST_DIR` 放置资产清单：
+
+```json
+{
+  "schemaVersion": "scene_asset_manifest.v1",
+  "sceneId": "demo-scene-001",
+  "sampleId": "demo-sample-001",
+  "sceneSampleFileId": "file-scene-sample-json",
+  "imageFileId": "file-ortho-image",
+  "pointCloudFileId": "file-point-cloud",
+  "preImageFileId": "file-pre-image",
+  "postImageFileId": "file-post-image",
+  "preprocessVersion": "preprocess-v1",
+  "createdAt": "2026-06-05T10:00:00+08:00"
+}
+```
+
+manifest 文件名仍按以下规则查找：
 
 ```text
 {scene_id}.json
 {sample_id}.json
 ```
+
+如果没有 manifest，`agent-service` 会再从 `AGENT_SCENE_SAMPLE_DIR` 读取同名本地样本 JSON。
 
 样本至少应包含真实 JSON 数组，而不是 shape 字符串：
 
@@ -406,6 +429,8 @@ src/generated/
   "post_image_path": "/app/data/post.png"
 }
 ```
+
+如果使用 manifest，`preImageFileId/postImageFileId` 会写入样本元数据；变化检测节点会优先通过 file-service gRPC 下载前后时相影像，再转发给 change-detection。`pre_image_url/post_image_url` 仅作为调试和兜底引用。
 
 ## gRPC 接口
 

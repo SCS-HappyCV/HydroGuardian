@@ -4,12 +4,15 @@
 
 from __future__ import annotations
 
-from config import ALLOW_DEMO_SCENE_SAMPLE, SCENE_SAMPLE_DIR
+from clients.file_assets import FileAssetError
+from config import ALLOW_DEMO_SCENE_SAMPLE, SCENE_MANIFEST_DIR, SCENE_SAMPLE_DIR
 from scene_samples import (
     LoadedSceneSample,
+    SceneManifestLoadError,
     SceneSampleLoadError,
     SceneSampleValidationError,
     build_demo_scene_sample,
+    load_scene_sample_from_manifest,
     load_scene_sample_from_disk,
     summarize_scene_sample,
     validate_scene_sample,
@@ -17,8 +20,11 @@ from scene_samples import (
 from state import AgentState, append_error, append_trace
 
 
-# 按优先级解析样本来源：先读磁盘样本，再按配置回退到 demo 样本。
-def _load_scene_sample(state: AgentState) -> LoadedSceneSample | None:
+# 按优先级解析样本来源：先读资产 manifest，再读磁盘样本，最后按配置回退到 demo 样本。
+async def _load_scene_sample(state: AgentState) -> LoadedSceneSample | None:
+    loaded = await load_scene_sample_from_manifest(state, SCENE_MANIFEST_DIR)
+    if loaded is not None:
+        return loaded
     loaded = load_scene_sample_from_disk(state, SCENE_SAMPLE_DIR)
     if loaded is not None:
         return loaded
@@ -28,14 +34,32 @@ def _load_scene_sample(state: AgentState) -> LoadedSceneSample | None:
 
 
 # 准备并校验后续 3D 执行要使用的场景张量样本。
-def scene_data_adapter_node(state: AgentState) -> AgentState:
+async def scene_data_adapter_node(state: AgentState) -> AgentState:
     # 如果前面已经明确 abstain / review，且连 program 都没有生成，
     # 这里就不再继续做样本准备，避免无意义的后续调用。
     if state["status"] in {"ABSTAINED", "REVIEW_REQUIRED"} and not state["selected_program"]:
         return state
 
     try:
-        loaded = _load_scene_sample(state)
+        loaded = await _load_scene_sample(state)
+    except SceneManifestLoadError as exc:
+        state["status"] = "FAILED"
+        append_error(
+            state,
+            "prepare_scene_sample.manifest",
+            "failed to load scene asset manifest",
+            {"path": str(exc.path), "reason": exc.reason},
+        )
+        return state
+    except FileAssetError as exc:
+        state["status"] = "FAILED"
+        append_error(
+            state,
+            "prepare_scene_sample.asset",
+            "failed to resolve scene file asset",
+            {"reason": str(exc)},
+        )
+        return state
     except SceneSampleLoadError as exc:
         state["status"] = "FAILED"
         append_error(
@@ -54,7 +78,10 @@ def scene_data_adapter_node(state: AgentState) -> AgentState:
             state,
             "prepare_scene_sample",
             "missing scene tensor sample",
-            {"scene_sample_dir": str(SCENE_SAMPLE_DIR)},
+            {
+                "scene_manifest_dir": str(SCENE_MANIFEST_DIR),
+                "scene_sample_dir": str(SCENE_SAMPLE_DIR),
+            },
         )
         return state
 

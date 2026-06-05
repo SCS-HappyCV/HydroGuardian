@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 from pathlib import Path
+from urllib.parse import urlparse
 
 import httpx
 
+from clients.file_assets import download_file
 from config import (
     CHANGE_DETECTION_SERVICE_NAME,
     CHANGE_DETECTION_TIMEOUT_SECONDS,
@@ -11,6 +13,30 @@ from config import (
 )
 from discovery import resolve_http_base_url
 from state import AgentState, append_error, append_trace
+
+
+# 判断一个引用是不是 HTTP/HTTPS URL。
+def _is_http_url(value: str) -> bool:
+    parsed = urlparse(value)
+    return parsed.scheme in {"http", "https"} and bool(parsed.netloc)
+
+
+# 从本地路径或 HTTP URL 读取影像内容，供 multipart 请求使用。
+async def _read_image_reference(reference: str, timeout: httpx.Timeout) -> tuple[str, bytes]:
+    if _is_http_url(reference):
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            response = await client.get(reference)
+        response.raise_for_status()
+        name = Path(urlparse(reference).path).name or "image.bin"
+        return name, response.content
+    path = Path(reference)
+    return path.name, path.read_bytes()
+
+
+# 通过 file-service 下载影像资产，避免容器内部访问浏览器侧预签名 URL。
+async def _read_image_asset(file_id: str) -> tuple[str, bytes]:
+    file_info, content = await download_file(file_id)
+    return file_info.get("fileName", "image.bin"), content
 
 
 async def run_change_detection(state: AgentState) -> AgentState:
@@ -27,9 +53,11 @@ async def run_change_detection(state: AgentState) -> AgentState:
     sample = state["scene_tensor_sample"]
     # 这里约定 sample 必须带前后时相影像路径。
     # 如果只有 3D 样本，没有前后影像，就无法做 2D 变化检测。
-    pre_image_path = sample.get("pre_image_path") or sample.get("preImagePath")
-    post_image_path = sample.get("post_image_path") or sample.get("postImagePath")
-    if not pre_image_path or not post_image_path:
+    pre_image_file_id = sample.get("pre_image_file_id") or sample.get("preImageFileId")
+    post_image_file_id = sample.get("post_image_file_id") or sample.get("postImageFileId")
+    pre_image_ref = sample.get("pre_image_path") or sample.get("preImagePath") or sample.get("pre_image_url")
+    post_image_ref = sample.get("post_image_path") or sample.get("postImagePath") or sample.get("post_image_url")
+    if not (pre_image_file_id and post_image_file_id) and (not pre_image_ref or not post_image_ref):
         state["change_pack"] = {
             "status": "skipped",
             "reason": "missing_pre_or_post_image_reference",
@@ -42,14 +70,19 @@ async def run_change_detection(state: AgentState) -> AgentState:
         base_url = await resolve_http_base_url(CHANGE_DETECTION_SERVICE_NAME, CHANGE_DETECTION_URL)
         timeout = httpx.Timeout(CHANGE_DETECTION_TIMEOUT_SECONDS)
         # 当前 change-detection 接口收的是文件上传，不是 JSON。
-        # 所以这里直接把 pre/post 图像按 multipart/form-data 发出去。
-        with open(pre_image_path, "rb") as pre_file, open(post_image_path, "rb") as post_file:
-            files = {
-                "pre_image": (Path(pre_image_path).name, pre_file, "application/octet-stream"),
-                "post_image": (Path(post_image_path).name, post_file, "application/octet-stream"),
-            }
-            async with httpx.AsyncClient(timeout=timeout) as client:
-                resp = await client.post(f"{base_url}/predict", files=files, data={"threshold": "0.5"})
+        # 所以这里把本地路径或预签名 URL 读取为 bytes 后按 multipart/form-data 发出去。
+        if pre_image_file_id and post_image_file_id:
+            pre_name, pre_content = await _read_image_asset(str(pre_image_file_id))
+            post_name, post_content = await _read_image_asset(str(post_image_file_id))
+        else:
+            pre_name, pre_content = await _read_image_reference(str(pre_image_ref), timeout)
+            post_name, post_content = await _read_image_reference(str(post_image_ref), timeout)
+        files = {
+            "pre_image": (pre_name, pre_content, "application/octet-stream"),
+            "post_image": (post_name, post_content, "application/octet-stream"),
+        }
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            resp = await client.post(f"{base_url}/predict", files=files, data={"threshold": "0.5"})
         if resp.status_code >= 300:
             raise RuntimeError(f"/predict {resp.status_code}: {resp.text[:500]}")
         # 当前只记录了最基础的变化摘要。后续如果需要更细的业务解释，
