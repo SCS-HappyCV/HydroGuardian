@@ -33,10 +33,13 @@ mybatis-plus:
 app:
   minio:
     endpoint: http://${MINIO_ENDPOINT:localhost:9000}
+    public-endpoint: ${MINIO_PUBLIC_ENDPOINT:http://localhost:9000}
     access-key: ${MINIO_ACCESS_KEY:hydro}
     secret-key: ${MINIO_SECRET_KEY:hydro12345}
     bucket: ${MINIO_BUCKET:hydro-files}
+    presigned-expiry-seconds: ${MINIO_PRESIGNED_EXPIRY_SECONDS:604800}
 
 grpc:
   server:
     port: ${GRPC_SERVER_PORT:9093}
+    max-inbound-message-bytes: ${GRPC_MAX_INBOUND_MESSAGE_BYTES:104857600}

@@ -6,25 +6,33 @@ option java_multiple_files = true;
 option java_package = "com.hydro.grpc.filev1";
 option java_outer_classname = "FileProto";
 
+// file-service 的文件资产 gRPC 契约。
 service FileRpcService {
   rpc UploadFile (UploadFileRequest) returns (FileReply);
   rpc GetFile (GetFileRequest) returns (FileReply);
 }
 
+// 上传文件请求；file_type 用于区分图像、点云、样本和证据产物。
 message UploadFileRequest {
   string file_name = 1;
   string content_type = 2;
   bytes content = 3;
+  string file_type = 4;
 }
 
+// 查询文件资产请求。
 message GetFileRequest {
   string file_id = 1;
 }
 
+// 文件资产响应；object_key 是 MinIO 内部定位键，download_url 是前端可展示的访问地址。
 message FileReply {
   string file_id = 1;
   string file_name = 2;
   string content_type = 3;
   int64 size = 4;
   string download_url = 5;
+  string object_key = 6;
+  string file_type = 7;
+  string checksum_sha256 = 8;
 }

@@ -4,6 +4,10 @@ server:
 spring:
   application:
     name: api-gateway
+  servlet:
+    multipart:
+      max-file-size: ${FILE_UPLOAD_MAX_SIZE:100MB}
+      max-request-size: ${FILE_UPLOAD_MAX_SIZE:100MB}
   cloud:
     nacos:
       discovery:
@@ -26,7 +30,11 @@ management:
 app:
   agent-service-name: ${AGENT_SERVICE_NAME:agent-service}
   case-service-name: ${CASE_SERVICE_NAME:case-service}
+  file-service-name: ${FILE_SERVICE_NAME:file-service}
   auth-token-secret: ${AUTH_TOKEN_SECRET:hydroguardian-dev-secret}
+  file-upload:
+    max-bytes: ${FILE_UPLOAD_MAX_BYTES:104857600}
+    grpc-max-inbound-message-bytes: ${FILE_UPLOAD_GRPC_MAX_INBOUND_MESSAGE_BYTES:104857600}
 
 mybatis-plus:
   configuration:

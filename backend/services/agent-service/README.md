@@ -225,7 +225,7 @@ api-gateway / grpc 客户端
 - `case-service`  
   负责 case 持久化；挂掉不会阻断 agent 生成风险和建议。
 - `file-service`  
-  当前主要用于文件查询接口。
+  负责把前端上传的图像、点云、样本 JSON 和证据产物保存到 MinIO，并在 `file_asset` 中登记 `fileId / objectKey / fileType / checksumSha256`。
 
 此外，`Nacos` 负责发现：
 
@@ -413,6 +413,8 @@ src/generated/
 
 - `ExecuteTask`
 - `QueryFile`
+
+文件上传不再绕 agent-service，前端走 `api-gateway POST /api/v1/files`，网关转发到 file-service gRPC `UploadFile`。agent-service 后续只通过 `fileId` 查询资产元数据，并把这些资产组织成真实 `SceneTensorSample`。
 
 示例：
 

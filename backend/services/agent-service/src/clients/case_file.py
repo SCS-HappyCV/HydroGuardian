@@ -129,4 +129,7 @@ async def get_file_info(file_id: str) -> Dict[str, Any]:
         "contentType": reply.content_type,
         "size": reply.size,
         "downloadUrl": reply.download_url,
+        "objectKey": reply.object_key,
+        "fileType": reply.file_type,
+        "checksumSha256": reply.checksum_sha256,
     }

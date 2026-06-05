@@ -40,6 +40,8 @@ CREATE TABLE IF NOT EXISTS file_asset (
     file_name VARCHAR(255) NOT NULL,
     content_type VARCHAR(128),
     object_key VARCHAR(255) NOT NULL,
+    file_type VARCHAR(32) NOT NULL DEFAULT 'generic',
+    checksum_sha256 CHAR(64) NOT NULL DEFAULT '',
     size BIGINT NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );

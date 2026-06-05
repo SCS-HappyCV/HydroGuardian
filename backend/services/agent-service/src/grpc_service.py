@@ -79,6 +79,9 @@ class AgentRpcServiceServicer(agent_pb2_grpc.AgentRpcServiceServicer):
                 content_type=file_result.get("contentType", ""),
                 size=int(file_result.get("size", 0)),
                 download_url=file_result.get("downloadUrl", ""),
+                object_key=file_result.get("objectKey", ""),
+                file_type=file_result.get("fileType", ""),
+                checksum_sha256=file_result.get("checksumSha256", ""),
             )
         except Exception as exc:
             await context.abort(grpc.StatusCode.INTERNAL, str(exc))

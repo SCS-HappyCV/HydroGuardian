@@ -49,4 +49,15 @@ curl -X POST http://localhost:8080/api/v1/tasks/execute \
   -d "{\"taskText\":\"筛查近水扰动区域并排序\",\"sceneId\":\"demo-scene-001\",\"debug\":true}"
 ```
 
+上传图像或点云到 file-service/MinIO：
+
+```bash
+curl -X POST http://localhost:8080/api/v1/files \
+  -F "file=@./demo.png" \
+  -F "fileType=image"
+```
+
+`fileType` 可选值包括 `image`、`point_cloud`、`scene_sample`、`change_mask`、`evidence_artifact`、`generic`。
+接口返回 `fileId / objectKey / fileType / checksumSha256 / downloadUrl`，其中 `downloadUrl` 是 MinIO 预签名访问地址；后续真实场景样本接入会基于这些资产 ID 组织预处理输入。
+
 更多规范与架构说明请看 `docs/README.md`。

@@ -154,9 +154,12 @@ services:
       DB_USER: hydro
       DB_PASSWORD: hydro123
       MINIO_ENDPOINT: minio:9000
+      MINIO_PUBLIC_ENDPOINT: http://localhost:9000
       MINIO_ACCESS_KEY: hydro
       MINIO_SECRET_KEY: hydro12345
       MINIO_BUCKET: hydro-files
+      MINIO_PRESIGNED_EXPIRY_SECONDS: 604800
+      GRPC_MAX_INBOUND_MESSAGE_BYTES: 104857600
 
   agent-service:
     build:
@@ -308,10 +311,16 @@ services:
       NACOS_GROUP: DEFAULT_GROUP
       NACOS_CLUSTER: DEFAULT
       AGENT_SERVICE_NAME: agent-service
+      FILE_SERVICE_NAME: file-service
+      FILE_UPLOAD_MAX_SIZE: 100MB
+      FILE_UPLOAD_MAX_BYTES: 104857600
+      FILE_UPLOAD_GRPC_MAX_INBOUND_MESSAGE_BYTES: 104857600
     ports:
       - "8080:8080"
     depends_on:
       agent-service:
+        condition: service_started
+      file-service:
         condition: service_started
       mysql:
         condition: service_healthy
