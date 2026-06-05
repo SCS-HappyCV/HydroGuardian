@@ -6,9 +6,10 @@ option java_multiple_files = true;
 option java_package = "com.hydro.grpc.agentv1";
 option java_outer_classname = "AgentProto";
 
-// agent-service 对外暴露的智能体执行与文件查询 gRPC 契约。
+// agent-service 对外暴露的智能体执行、场景预处理与文件查询 gRPC 契约。
 service AgentRpcService {
   rpc ExecuteTask (ExecuteTaskRequest) returns (ExecuteTaskReply);
+  rpc PreprocessScene (PreprocessSceneRequest) returns (PreprocessSceneReply);
   rpc UploadFile (UploadFileRequest) returns (QueryFileReply);
   rpc QueryFile (QueryFileRequest) returns (QueryFileReply);
 }
@@ -41,6 +42,35 @@ message ExecuteTaskReply {
   int32 error_count = 16;
   string case_persistence_status = 17;
   string case_persistence_error = 18;
+}
+
+// 真实场景预处理请求；前端上传原始资产后，把 fileId 交给 agent-service 生成 SceneTensorSample。
+message PreprocessSceneRequest {
+  string scene_id = 1;
+  string sample_id = 2;
+  string image_file_id = 3;
+  string point_cloud_file_id = 4;
+  string pre_image_file_id = 5;
+  string post_image_file_id = 6;
+  string preprocess_version = 7;
+  int32 image_size = 8;
+  int32 max_points = 9;
+}
+
+// 真实场景预处理响应；scene_sample_file_id 是生成并上传到 file-service 的样本 JSON。
+message PreprocessSceneReply {
+  string scene_id = 1;
+  string sample_id = 2;
+  string scene_sample_file_id = 3;
+  string image_file_id = 4;
+  string point_cloud_file_id = 5;
+  string pre_image_file_id = 6;
+  string post_image_file_id = 7;
+  string preprocess_version = 8;
+  bool manifest_registered = 9;
+  string checksum_sha256 = 10;
+  string scene_sample_file_name = 11;
+  string status = 12;
 }
 
 // 单条链路追踪事件，data_json 保存结构化诊断信息。

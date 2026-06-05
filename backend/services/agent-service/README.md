@@ -37,6 +37,7 @@ agent-service/
    |- grpc_client.py       # 通用 gRPC channel helper
    |- generated/           # 生成的 *_pb2.py / *_pb2_grpc.py
    |- clients/             # 外部服务客户端
+   |- scene_preprocess/    # 图像/点云预处理与 manifest 注册
    `- nodes/               # LangGraph 节点
 ```
 
@@ -51,7 +52,7 @@ agent-service/
 1. [src/main.py](</D:/py_project/HydroGuardian/backend/services/agent-service/src/main.py>)  
    服务启动入口，负责拉起 gRPC server，并处理 Nacos 注册与心跳。
 2. [src/grpc_service.py](</D:/py_project/HydroGuardian/backend/services/agent-service/src/grpc_service.py>)  
-   `ExecuteTask` 的真正入口。这里会初始化 `AgentState`，执行整张 LangGraph 图，并在最后尝试持久化 case。
+   `ExecuteTask / PreprocessScene` 的真正入口。这里会初始化 `AgentState` 执行智能体图，也会触发真实场景预处理。
 3. [src/agent_graph.py](</D:/py_project/HydroGuardian/backend/services/agent-service/src/agent_graph.py>)  
    主流程编排定义。现在是线性 MVP 链路：
    `parse_task -> build_program -> prepare_scene_sample -> execute_3d -> maybe_detect_change -> assess_risk -> generate_recommendation`
@@ -128,7 +129,23 @@ api-gateway / grpc 客户端
 这意味着：
 
 - 现在图编排和服务联通性可以独立调
-- 但真实推理上线前，必须接入正式预处理流水线，并关闭 demo sample 回退
+- 真实样本生成已经先放在 `src/scene_preprocess/`，后续如果预处理变重，可以把这个包整体拆成独立服务
+- 真实推理验收时应关闭 demo sample 回退
+
+#### 预处理层
+
+- [src/scene_preprocess/service.py](</D:/py_project/HydroGuardian/backend/services/agent-service/src/scene_preprocess/service.py>)
+- [src/scene_preprocess/image.py](</D:/py_project/HydroGuardian/backend/services/agent-service/src/scene_preprocess/image.py>)
+- [src/scene_preprocess/point_cloud.py](</D:/py_project/HydroGuardian/backend/services/agent-service/src/scene_preprocess/point_cloud.py>)
+- [src/scene_preprocess/sample_builder.py](</D:/py_project/HydroGuardian/backend/services/agent-service/src/scene_preprocess/sample_builder.py>)
+- [src/scene_preprocess/manifest_registry.py](</D:/py_project/HydroGuardian/backend/services/agent-service/src/scene_preprocess/manifest_registry.py>)
+
+当前预处理是 MVP 版本：
+
+- 图像使用 Pillow 转 RGB、resize，并输出 `[3,H,W]` 的 0-1 浮点数组
+- 点云支持 ASCII PLY、XYZ、CSV、TXT 等文本格式，暂不支持二进制 PLY/LAS/LAZ
+- 点云会均匀采样、中心化归一化，并参考 `wcs_unified.geometry_features` 生成 `z_norm / grid_slope / grid_roughness / grid_density`
+- 生成的 `SceneTensorSample JSON` 会上传到 file-service，并自动调用 case-service 注册 `scene_asset_manifest`
 
 #### 证据执行层
 
@@ -196,9 +213,11 @@ api-gateway / grpc 客户端
 
 从这里开始：
 
+- [src/scene_preprocess/service.py](</D:/py_project/HydroGuardian/backend/services/agent-service/src/scene_preprocess/service.py>)
+- [src/scene_preprocess/point_cloud.py](</D:/py_project/HydroGuardian/backend/services/agent-service/src/scene_preprocess/point_cloud.py>)
 - [src/nodes/scene.py](</D:/py_project/HydroGuardian/backend/services/agent-service/src/nodes/scene.py>)
 
-目标不是改 graph，而是让这个节点稳定输出 `SceneTensorSample`。
+目标是让 `scene_preprocess` 稳定生成 `SceneTensorSample`，让 `scene.py` 只负责按 `sceneId` 读取和校验样本。
 
 #### 想调整风险等级或评分逻辑
 
@@ -368,6 +387,10 @@ src/generated/
 | `AGENT_SCENE_MANIFEST_DIR` | `/app/data/scene_manifests` | scene 资产 manifest 目录，优先级高于本地样本目录 |
 | `AGENT_SCENE_MANIFEST_SERVICE_ENABLED` | `true` | 是否优先从 case-service 查询入库的 scene 资产 manifest |
 | `AGENT_SCENE_MANIFEST_SERVICE_TIMEOUT_SECONDS` | `CASE_GRPC_TIMEOUT_SECONDS` | 查询 scene 资产 manifest 的 gRPC 超时时间 |
+| `AGENT_SCENE_PREPROCESS_IMAGE_SIZE` | `64` | `PreprocessScene` 默认输出图像尺寸 |
+| `AGENT_SCENE_PREPROCESS_MAX_POINTS` | `4096` | `PreprocessScene` 默认点云采样上限 |
+| `AGENT_SCENE_PREPROCESS_VERSION` | `preprocess-mvp-v1` | `PreprocessScene` 默认预处理版本 |
+| `AGENT_SCENE_PREPROCESS_GEOMETRY_CELL_SIZE` | `2.0` | 网格几何特征的 XY cell size |
 | `AGENT_SCENE_SAMPLE_DIR` | `/app/data/scene_samples` | 预处理后场景样本 JSON 目录 |
 | `AGENT_ALLOW_DEMO_SAMPLE` | `true` | 缺少场景样本时是否生成 demo sample |
 
@@ -375,12 +398,32 @@ src/generated/
 
 `hydro-program3d /execute` 不读取原始文件路径，调用方必须提供预处理后的 JSON 张量。推荐链路是：
 
-1. 前端先通过 `api-gateway POST /api/v1/files` 上传图像、点云和预处理后的 `SceneTensorSample JSON`
+1. 前端先通过 `api-gateway POST /api/v1/files` 上传图像和点云
 2. 网关转发给 file-service 保存到 MinIO，并返回各自的 `fileId`
-3. 前端通过 `api-gateway POST /api/v1/scenes/{sceneId}/manifest` 注册清单
-4. agent-service 执行任务时优先从 case-service 查询该清单，再按 `sceneSampleFileId` 下载样本 JSON
+3. 前端通过 `api-gateway POST /api/v1/scenes/preprocess` 触发 agent-service 内部预处理
+4. agent-service 下载原始资产，生成 `SceneTensorSample JSON`，上传到 file-service
+5. agent-service 自动调用 case-service 注册 `scene_asset_manifest`
+6. agent-service 执行任务时优先从 case-service 查询该清单，再按 `sceneSampleFileId` 下载样本 JSON
 
-注册清单示例：
+预处理示例：
+
+```bash
+curl -X POST http://localhost:8080/api/v1/scenes/preprocess \
+  -H "Content-Type: application/json" \
+  -d '{
+    "sceneId": "demo-scene-001",
+    "sampleId": "demo-sample-001",
+    "imageFileId": "file-ortho-image",
+    "pointCloudFileId": "file-point-cloud",
+    "preImageFileId": "file-pre-image",
+    "postImageFileId": "file-post-image",
+    "preprocessVersion": "preprocess-mvp-v1",
+    "imageSize": 64,
+    "maxPoints": 4096
+  }'
+```
+
+如果你已经有外部预处理流水线生成了 `SceneTensorSample JSON`，也可以继续手动上传 sample JSON 后注册清单：
 
 ```bash
 curl -X POST http://localhost:8080/api/v1/scenes/demo-scene-001/manifest \
@@ -390,8 +433,6 @@ curl -X POST http://localhost:8080/api/v1/scenes/demo-scene-001/manifest \
     "sceneSampleFileId": "file-scene-sample-json",
     "imageFileId": "file-ortho-image",
     "pointCloudFileId": "file-point-cloud",
-    "preImageFileId": "file-pre-image",
-    "postImageFileId": "file-post-image",
     "preprocessVersion": "preprocess-v1",
     "schemaVersion": "scene_asset_manifest.v1"
   }'
@@ -472,9 +513,10 @@ manifest 文件名仍按以下规则查找：
 服务定义在 `proto/agent.proto`：
 
 - `ExecuteTask`
+- `PreprocessScene`
 - `QueryFile`
 
-文件上传不再绕 agent-service，前端走 `api-gateway POST /api/v1/files`，网关转发到 file-service gRPC `UploadFile`。agent-service 后续只通过 `fileId` 查询资产元数据，并把这些资产组织成真实 `SceneTensorSample`。
+文件上传不再绕 agent-service，前端走 `api-gateway POST /api/v1/files`，网关转发到 file-service gRPC `UploadFile`。agent-service 后续通过 `PreprocessScene` 下载这些 `fileId`，生成真实 `SceneTensorSample`，再上传 sample JSON 并注册 manifest。
 
 示例：
 

@@ -6,6 +6,7 @@ package hydro.case.v1;
 service CaseRpcService {
   rpc CreateCase (CreateCaseRequest) returns (CaseReply);
   rpc GetCase (GetCaseRequest) returns (CaseReply);
+  rpc CreateSceneManifest (CreateSceneManifestRequest) returns (SceneManifestReply);
   rpc GetSceneManifest (GetSceneManifestRequest) returns (SceneManifestReply);
 }
 
@@ -37,6 +38,20 @@ message CaseReply {
   string tags = 8;
   string created_at = 9;
   string agent_result_json = 10;
+}
+
+// 创建或更新场景资产清单；scene_sample_file_id 指向预处理后的 SceneTensorSample JSON。
+message CreateSceneManifestRequest {
+  string scene_id = 1;
+  string sample_id = 2;
+  string scene_sample_file_id = 3;
+  string image_file_id = 4;
+  string point_cloud_file_id = 5;
+  string pre_image_file_id = 6;
+  string post_image_file_id = 7;
+  string preprocess_version = 8;
+  string checksum_sha256 = 9;
+  string schema_version = 10;
 }
 
 // 按 scene_id 查询场景资产清单。

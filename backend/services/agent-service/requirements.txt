@@ -6,3 +6,4 @@ langchain-core==0.3.66
 openai>=1.63.0,<2
 grpcio==1.64.1
 grpcio-tools==1.64.1
+Pillow==10.4.0

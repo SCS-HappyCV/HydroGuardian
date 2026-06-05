@@ -11,6 +11,12 @@ from clients.case_file import build_persistence_failure_result, persist_case
 from clients.file_assets import get_file_info
 from generated import agent_pb2, agent_pb2_grpc
 from responses import build_execute_task_reply
+from scene_preprocess import (
+    ScenePreprocessError,
+    ScenePreprocessRequest,
+    ScenePreprocessValidationError,
+    preprocess_scene,
+)
 from state import AgentState, append_error
 
 
@@ -67,6 +73,42 @@ class AgentRpcServiceServicer(agent_pb2_grpc.AgentRpcServiceServicer):
                 state=final_state,
                 case_result=case_result,
             )
+        except Exception as exc:
+            await context.abort(grpc.StatusCode.INTERNAL, str(exc))
+
+    # 预处理真实场景资产，生成 SceneTensorSample JSON 并自动注册 manifest。
+    async def PreprocessScene(self, request, context):
+        try:
+            preprocess_request = ScenePreprocessRequest(
+                scene_id=request.scene_id.strip(),
+                sample_id=request.sample_id.strip(),
+                image_file_id=request.image_file_id.strip(),
+                point_cloud_file_id=request.point_cloud_file_id.strip(),
+                pre_image_file_id=request.pre_image_file_id.strip(),
+                post_image_file_id=request.post_image_file_id.strip(),
+                preprocess_version=request.preprocess_version.strip(),
+                image_size=int(request.image_size),
+                max_points=int(request.max_points),
+            )
+            result = await preprocess_scene(preprocess_request)
+            return agent_pb2.PreprocessSceneReply(
+                scene_id=result.scene_id,
+                sample_id=result.sample_id,
+                scene_sample_file_id=result.scene_sample_file_id,
+                image_file_id=result.image_file_id,
+                point_cloud_file_id=result.point_cloud_file_id,
+                pre_image_file_id=result.pre_image_file_id,
+                post_image_file_id=result.post_image_file_id,
+                preprocess_version=result.preprocess_version,
+                manifest_registered=result.manifest_registered,
+                checksum_sha256=result.checksum_sha256,
+                scene_sample_file_name=result.scene_sample_file_name,
+                status=result.status,
+            )
+        except ScenePreprocessValidationError as exc:
+            await context.abort(grpc.StatusCode.INVALID_ARGUMENT, str(exc))
+        except ScenePreprocessError as exc:
+            await context.abort(grpc.StatusCode.INTERNAL, str(exc))
         except Exception as exc:
             await context.abort(grpc.StatusCode.INTERNAL, str(exc))
 
