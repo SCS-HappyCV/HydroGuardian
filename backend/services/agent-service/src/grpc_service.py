@@ -4,6 +4,8 @@
 
 from __future__ import annotations
 
+import json
+
 import grpc
 
 from agent_graph import graph
@@ -104,6 +106,7 @@ class AgentRpcServiceServicer(agent_pb2_grpc.AgentRpcServiceServicer):
                 checksum_sha256=result.checksum_sha256,
                 scene_sample_file_name=result.scene_sample_file_name,
                 status=result.status,
+                quality_report_json=json.dumps(result.quality_report, ensure_ascii=False),
             )
         except ScenePreprocessValidationError as exc:
             await context.abort(grpc.StatusCode.INVALID_ARGUMENT, str(exc))

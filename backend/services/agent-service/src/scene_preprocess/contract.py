@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Any, Dict
 
 from config import (
     SCENE_PREPROCESS_IMAGE_SIZE,
@@ -79,4 +80,5 @@ class ScenePreprocessResult:
     manifest_registered: bool
     checksum_sha256: str
     scene_sample_file_name: str
+    quality_report: Dict[str, Any]
     status: str = "SCENE_SAMPLE_READY"

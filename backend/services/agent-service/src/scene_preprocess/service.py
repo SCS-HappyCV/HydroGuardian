@@ -5,11 +5,13 @@ from __future__ import annotations
 
 from clients.file_assets import download_file
 from clients.file_upload import upload_scene_sample_json
+from scene_samples.validator import SceneSampleValidationError, validate_scene_sample
 
-from .contract import ScenePreprocessRequest, ScenePreprocessResult
+from .contract import ScenePreprocessError, ScenePreprocessRequest, ScenePreprocessResult
 from .image import preprocess_image_bytes
 from .manifest_registry import register_scene_manifest
 from .point_cloud import preprocess_point_cloud_bytes
+from .quality import attach_quality_report, build_quality_report
 from .sample_builder import (
     build_scene_sample_file_name,
     build_scene_tensor_sample,
@@ -42,6 +44,15 @@ async def preprocess_scene(request: ScenePreprocessRequest) -> ScenePreprocessRe
         image_file=image_file,
         point_cloud_file=point_cloud_file,
     )
+    validation_issues = _validate_generated_sample(sample)
+    quality_report = build_quality_report(
+        request=request,
+        sample=sample,
+        image_metadata=image_metadata,
+        point_cloud_payload=point_cloud_payload,
+        validation_issues=validation_issues,
+    )
+    attach_quality_report(sample, quality_report)
     sample_content, checksum_sha256 = serialize_scene_sample(sample)
     sample_file_name = build_scene_sample_file_name(
         request.scene_id,
@@ -68,4 +79,16 @@ async def preprocess_scene(request: ScenePreprocessRequest) -> ScenePreprocessRe
         manifest_registered=True,
         checksum_sha256=checksum_sha256,
         scene_sample_file_name=sample_file_name,
+        quality_report=quality_report,
     )
+
+
+# 上传前立即执行现有样本校验器，确保生成样本能被 ExecuteTask 继续消费。
+def _validate_generated_sample(sample: dict) -> list[str]:
+    try:
+        validate_scene_sample(sample)
+        return []
+    except SceneSampleValidationError as exc:
+        raise ScenePreprocessError(
+            "generated scene sample failed validation: " + "; ".join(exc.issues)
+        ) from exc

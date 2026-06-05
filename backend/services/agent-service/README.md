@@ -423,6 +423,38 @@ curl -X POST http://localhost:8080/api/v1/scenes/preprocess \
   }'
 ```
 
+预处理成功后，网关会返回 `qualityReport`，用于判断这份场景是否真的可执行：
+
+```json
+{
+  "sceneId": "demo-scene-001",
+  "sampleId": "demo-sample-001",
+  "sceneSampleFileId": "file-scene-sample-json",
+  "manifestRegistered": true,
+  "qualityReport": {
+    "imageShape": [3, 64, 64],
+    "pointCountOriginal": 120000,
+    "pointCountSampled": 4096,
+    "geometryFeatureNames": [
+      "z_norm",
+      "grid_slope",
+      "grid_roughness",
+      "grid_density"
+    ],
+    "hasRgb": true,
+    "hasPreImage": true,
+    "hasPostImage": true,
+    "sampleValidation": {
+      "valid": true,
+      "issues": []
+    },
+    "warnings": []
+  }
+}
+```
+
+同一份质量报告也会写入生成的 `SceneTensorSample.metadata.quality_report`，后续 case 快照和排障回放可以直接看到预处理质量。
+
 如果你已经有外部预处理流水线生成了 `SceneTensorSample JSON`，也可以继续手动上传 sample JSON 后注册清单：
 
 ```bash

@@ -40,6 +40,7 @@ def preprocess_point_cloud_bytes(content: bytes, max_points: int) -> Dict[str, A
             "point_count_sampled": len(sampled_points),
             "max_points": max_points,
             "normalization": normalization,
+            "has_rgb": _has_non_default_rgb(raw_points),
             "geometry_feature_names": list(FEATURE_NAMES),
             "geometry_cell_size": SCENE_PREPROCESS_GEOMETRY_CELL_SIZE,
             "supported_formats": ["ascii_ply", "xyz", "csv", "txt"],
@@ -193,6 +194,11 @@ def _normalize_rgb(values: tuple[float, float, float]) -> list[float]:
     if max(values) > 1.0:
         return [round(max(0.0, min(value, 255.0)) / 255.0, 6) for value in values]
     return [round(max(0.0, min(value, 1.0)), 6) for value in values]
+
+
+# 粗略判断输入点云是否携带了真实 RGB，而不是使用默认灰色兜底。
+def _has_non_default_rgb(points: list[tuple[float, float, float, float, float, float]]) -> bool:
+    return any(point[3:6] != (128.0, 128.0, 128.0) for point in points)
 
 
 # 参考 wcs_unified.geometry_features.compute_grid_geometry_features 生成网格几何特征。

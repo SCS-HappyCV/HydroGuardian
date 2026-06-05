@@ -71,6 +71,7 @@ message PreprocessSceneReply {
   string checksum_sha256 = 10;
   string scene_sample_file_name = 11;
   string status = 12;
+  string quality_report_json = 13;
 }
 
 // 单条链路追踪事件，data_json 保存结构化诊断信息。
