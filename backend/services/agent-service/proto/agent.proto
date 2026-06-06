@@ -37,6 +37,7 @@ message ExecuteTaskReply {
   int32 error_count = 16;
   string case_persistence_status = 17;
   string case_persistence_error = 18;
+  string work_orders_json = 19;
 }
 
 // 真实场景预处理请求；前端上传原始资产后，把 fileId 交给 agent-service 生成 SceneTensorSample。

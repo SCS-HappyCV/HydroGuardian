@@ -94,4 +94,5 @@ def build_execute_task_reply(
         error_count=len(errors),
         case_persistence_status=str(case_result.get("persistenceStatus", "")),
         case_persistence_error=str(case_result.get("persistenceError", "")),
+        work_orders_json=_json_dump(state.get("work_orders") or []),
     )

@@ -1,8 +1,12 @@
+# 风险评估节点。
+# 本模块把 EvidencePack 和 ChangePack 转换成业务风险卡，供建议和工单节点消费。
+
 from __future__ import annotations
 
 from state import AgentState, append_trace, as_float, failure_evidence_pack
 
 
+# 根据任务目标、关系和时间意图推断风险类型。
 def infer_risk_type(state: AgentState) -> str:
     # risk_type 主要是给业务层一个更直观的风险名称，
     # 不直接参与底层模型执行。
@@ -23,6 +27,7 @@ def infer_risk_type(state: AgentState) -> str:
     return "water_hazard_screening_risk"
 
 
+# 生成风险卡，并给后续 recommendation/work-order 节点提供稳定输入。
 def risk_assessment_node(state: AgentState) -> AgentState:
     # 这里故意只消费 EvidencePack / ChangePack，
     # 不再回头直接读原始模型 tensor，保持业务层输入稳定。
@@ -85,6 +90,7 @@ def risk_assessment_node(state: AgentState) -> AgentState:
         region_id = str(regions[0].get("region_id", ""))
 
     risk_card = {
+        "risk_card_id": "risk_primary",
         "risk_type": infer_risk_type(state),
         "risk_level": risk_level,
         "risk_score": round(risk_score, 4),

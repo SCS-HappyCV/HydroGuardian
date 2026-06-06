@@ -32,6 +32,29 @@ CREATE TABLE IF NOT EXISTS case_agent_result (
     INDEX idx_case_agent_result_case_id (case_id)
 );
 
+CREATE TABLE IF NOT EXISTS case_work_order (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    work_order_id VARCHAR(64) NOT NULL UNIQUE,
+    case_id VARCHAR(64) NOT NULL,
+    risk_card_id VARCHAR(64),
+    risk_type VARCHAR(128),
+    risk_level VARCHAR(32),
+    title VARCHAR(255) NOT NULL,
+    summary TEXT,
+    recommended_action TEXT,
+    status VARCHAR(32) NOT NULL,
+    assignee VARCHAR(64),
+    deadline VARCHAR(64),
+    closure_note TEXT,
+    evidence_summary_json JSON,
+    schema_version VARCHAR(64) NOT NULL DEFAULT 'case_work_order.v1',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_case_work_order_case_id (case_id),
+    INDEX idx_case_work_order_status (status),
+    INDEX idx_case_work_order_assignee (assignee)
+);
+
 CREATE TABLE IF NOT EXISTS scene_asset_manifest (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
     scene_id VARCHAR(128) NOT NULL UNIQUE,

@@ -1,15 +1,17 @@
 // case-service 的 gRPC 服务实现。
-// 这里负责 case 主表、agent 执行快照表、场景资产清单和用户鉴权请求的落库与兜底缓存。
+// 这里负责 case 主表、agent 执行快照表、工单表、场景资产清单和用户鉴权请求的落库与兜底缓存。
 package com.hydro.casehub.grpc;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.hydro.casehub.auth.PasswordHasher;
 import com.hydro.casehub.entity.AppUserEntity;
 import com.hydro.casehub.entity.CaseAgentResultEntity;
+import com.hydro.casehub.entity.CaseWorkOrderEntity;
 import com.hydro.casehub.entity.RiskCaseEntity;
 import com.hydro.casehub.entity.SceneAssetManifestEntity;
 import com.hydro.casehub.mapper.AppUserMapper;
 import com.hydro.casehub.mapper.CaseAgentResultMapper;
+import com.hydro.casehub.mapper.CaseWorkOrderMapper;
 import com.hydro.casehub.mapper.RiskCaseMapper;
 import com.hydro.casehub.mapper.SceneAssetManifestMapper;
 import com.hydro.grpc.casev1.AuthUser;
@@ -17,47 +19,61 @@ import com.hydro.grpc.casev1.CaseReply;
 import com.hydro.grpc.casev1.CaseRpcServiceGrpc;
 import com.hydro.grpc.casev1.CreateCaseRequest;
 import com.hydro.grpc.casev1.CreateSceneManifestRequest;
+import com.hydro.grpc.casev1.CreateWorkOrderRequest;
 import com.hydro.grpc.casev1.GetCaseRequest;
 import com.hydro.grpc.casev1.GetSceneManifestRequest;
+import com.hydro.grpc.casev1.GetWorkOrderRequest;
+import com.hydro.grpc.casev1.ListCaseWorkOrdersReply;
+import com.hydro.grpc.casev1.ListCaseWorkOrdersRequest;
 import com.hydro.grpc.casev1.LoginUserReply;
 import com.hydro.grpc.casev1.LoginUserRequest;
 import com.hydro.grpc.casev1.RegisterUserReply;
 import com.hydro.grpc.casev1.RegisterUserRequest;
 import com.hydro.grpc.casev1.SceneManifestReply;
+import com.hydro.grpc.casev1.UpdateCaseAgentResultRequest;
+import com.hydro.grpc.casev1.UpdateWorkOrderStatusRequest;
+import com.hydro.grpc.casev1.WorkOrderReply;
 import io.grpc.stub.StreamObserver;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Component;
 
+import java.util.Comparator;
+import java.util.List;
 import java.time.LocalDateTime;
 import java.util.Locale;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
 @Component
-// 组合 case、agent_result、场景清单和用户四类能力的 gRPC 服务。
+// 组合 case、agent_result、工单、场景清单和用户五类能力的 gRPC 服务。
 public class CaseGrpcService extends CaseRpcServiceGrpc.CaseRpcServiceImplBase {
 
     private final RiskCaseMapper mapper;
     private final CaseAgentResultMapper agentResultMapper;
+    private final CaseWorkOrderMapper caseWorkOrderMapper;
     private final SceneAssetManifestMapper sceneAssetManifestMapper;
     private final AppUserMapper appUserMapper;
     private final PasswordHasher passwordHasher;
     private final ConcurrentMap<String, RiskCaseEntity> memoryStore = new ConcurrentHashMap<>();
     private final ConcurrentMap<String, CaseAgentResultEntity> agentResultMemoryStore = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, CaseWorkOrderEntity> workOrderMemoryStore = new ConcurrentHashMap<>();
     private final ConcurrentMap<String, SceneAssetManifestEntity> sceneManifestMemoryStore = new ConcurrentHashMap<>();
     private final ConcurrentMap<String, AppUserEntity> userMemoryStore = new ConcurrentHashMap<>();
 
-    // 注入 case 主表、agent 结果表、场景清单表、用户表和密码工具。
+    // 注入 case 主表、agent 结果表、工单表、场景清单表、用户表和密码工具。
     public CaseGrpcService(
             RiskCaseMapper mapper,
             CaseAgentResultMapper agentResultMapper,
+            CaseWorkOrderMapper caseWorkOrderMapper,
             SceneAssetManifestMapper sceneAssetManifestMapper,
             AppUserMapper appUserMapper,
             PasswordHasher passwordHasher
     ) {
         this.mapper = mapper;
         this.agentResultMapper = agentResultMapper;
+        this.caseWorkOrderMapper = caseWorkOrderMapper;
         this.sceneAssetManifestMapper = sceneAssetManifestMapper;
         this.appUserMapper = appUserMapper;
         this.passwordHasher = passwordHasher;
@@ -107,6 +123,33 @@ public class CaseGrpcService extends CaseRpcServiceGrpc.CaseRpcServiceImplBase {
     }
 
     @Override
+    // 回写 case 的 agent_result_json，通常在真实工单创建完成后调用。
+    public void updateCaseAgentResult(
+            UpdateCaseAgentResultRequest request,
+            StreamObserver<CaseReply> responseObserver
+    ) {
+        String caseId = trimToEmpty(request.getCaseId());
+        if (caseId.isBlank()) {
+            responseObserver.onError(GrpcServiceSupport.invalidArgument("case_id is required"));
+            return;
+        }
+        if (trimToEmpty(request.getAgentResultJson()).isBlank()) {
+            responseObserver.onError(GrpcServiceSupport.invalidArgument("agent_result_json is required"));
+            return;
+        }
+
+        RiskCaseEntity entity = findCaseByCaseId(caseId);
+        if (entity == null) {
+            responseObserver.onError(GrpcServiceSupport.notFound("Case not found: " + caseId));
+            return;
+        }
+
+        upsertAgentResult(caseId, request.getAgentResultJson());
+        responseObserver.onNext(toReply(entity, loadAgentResultJson(caseId)));
+        responseObserver.onCompleted();
+    }
+
+    @Override
     // 创建或更新场景资产清单，供 agent-service 按 scene_id 找到真实样本资产。
     public void createSceneManifest(
             CreateSceneManifestRequest request,
@@ -122,6 +165,115 @@ public class CaseGrpcService extends CaseRpcServiceGrpc.CaseRpcServiceImplBase {
         upsertSceneManifest(entity);
 
         responseObserver.onNext(toSceneManifestReply(entity));
+        responseObserver.onCompleted();
+    }
+
+    @Override
+    // 创建真实工单；case_id 必须已经存在，work_order_id 由 case-service 统一生成。
+    public void createWorkOrder(
+            CreateWorkOrderRequest request,
+            StreamObserver<WorkOrderReply> responseObserver
+    ) {
+        String validationError = validateCreateWorkOrder(request);
+        if (!validationError.isBlank()) {
+            responseObserver.onError(GrpcServiceSupport.invalidArgument(validationError));
+            return;
+        }
+        if (findCaseByCaseId(trimToEmpty(request.getCaseId())) == null) {
+            responseObserver.onError(GrpcServiceSupport.notFound("Case not found: " + request.getCaseId()));
+            return;
+        }
+
+        CaseWorkOrderEntity entity = buildWorkOrderEntity(request);
+        saveWorkOrder(entity);
+
+        responseObserver.onNext(toWorkOrderReply(entity));
+        responseObserver.onCompleted();
+    }
+
+    @Override
+    // 查询单个工单；未命中时返回 NOT_FOUND。
+    public void getWorkOrder(
+            GetWorkOrderRequest request,
+            StreamObserver<WorkOrderReply> responseObserver
+    ) {
+        String workOrderId = trimToEmpty(request.getWorkOrderId());
+        if (workOrderId.isBlank()) {
+            responseObserver.onError(GrpcServiceSupport.invalidArgument("work_order_id is required"));
+            return;
+        }
+
+        CaseWorkOrderEntity entity = findWorkOrderById(workOrderId);
+        if (entity == null) {
+            responseObserver.onError(GrpcServiceSupport.notFound("Work order not found: " + workOrderId));
+            return;
+        }
+
+        responseObserver.onNext(toWorkOrderReply(entity));
+        responseObserver.onCompleted();
+    }
+
+    @Override
+    // 按 case_id 查询工单列表；用于前端从 case 详情进入处置闭环。
+    public void listCaseWorkOrders(
+            ListCaseWorkOrdersRequest request,
+            StreamObserver<ListCaseWorkOrdersReply> responseObserver
+    ) {
+        String caseId = trimToEmpty(request.getCaseId());
+        if (caseId.isBlank()) {
+            responseObserver.onError(GrpcServiceSupport.invalidArgument("case_id is required"));
+            return;
+        }
+
+        List<CaseWorkOrderEntity> entities = findWorkOrdersByCaseId(caseId);
+        ListCaseWorkOrdersReply.Builder builder = ListCaseWorkOrdersReply.newBuilder();
+        entities.stream()
+                .sorted(Comparator.comparing(CaseWorkOrderEntity::getCreatedAt, Comparator.nullsLast(Comparator.naturalOrder())))
+                .map(this::toWorkOrderReply)
+                .forEach(builder::addWorkOrders);
+
+        responseObserver.onNext(builder.build());
+        responseObserver.onCompleted();
+    }
+
+    @Override
+    // 更新工单状态；assignee 和 closure_note 为空时保持数据库原值。
+    public void updateWorkOrderStatus(
+            UpdateWorkOrderStatusRequest request,
+            StreamObserver<WorkOrderReply> responseObserver
+    ) {
+        String workOrderId = trimToEmpty(request.getWorkOrderId());
+        String status = normalizeWorkOrderStatus(request.getStatus());
+        if (workOrderId.isBlank()) {
+            responseObserver.onError(GrpcServiceSupport.invalidArgument("work_order_id is required"));
+            return;
+        }
+        if (status.isBlank()) {
+            responseObserver.onError(GrpcServiceSupport.invalidArgument("status is required"));
+            return;
+        }
+        if (!allowedWorkOrderStatuses().contains(status)) {
+            responseObserver.onError(GrpcServiceSupport.invalidArgument("unsupported work order status: " + status));
+            return;
+        }
+
+        CaseWorkOrderEntity entity = findWorkOrderById(workOrderId);
+        if (entity == null) {
+            responseObserver.onError(GrpcServiceSupport.notFound("Work order not found: " + workOrderId));
+            return;
+        }
+
+        entity.setStatus(status);
+        if (!trimToEmpty(request.getAssignee()).isBlank()) {
+            entity.setAssignee(trimToEmpty(request.getAssignee()));
+        }
+        if (!trimToEmpty(request.getClosureNote()).isBlank()) {
+            entity.setClosureNote(trimToEmpty(request.getClosureNote()));
+        }
+        entity.setUpdatedAt(LocalDateTime.now());
+        updateWorkOrder(entity);
+
+        responseObserver.onNext(toWorkOrderReply(entity));
         responseObserver.onCompleted();
     }
 
@@ -243,6 +395,188 @@ public class CaseGrpcService extends CaseRpcServiceGrpc.CaseRpcServiceImplBase {
                 .setUser(toAuthUser(user))
                 .build());
         responseObserver.onCompleted();
+    }
+
+    // 根据 case_id 查找 case 主表实体；数据库失败时回退内存缓存。
+    private RiskCaseEntity findCaseByCaseId(String caseId) {
+        try {
+            RiskCaseEntity entity = mapper.selectOne(
+                    new LambdaQueryWrapper<RiskCaseEntity>()
+                            .eq(RiskCaseEntity::getCaseId, caseId)
+            );
+            if (entity != null) {
+                return entity;
+            }
+        } catch (Exception ignored) {
+            return memoryStore.get(caseId);
+        }
+        return memoryStore.get(caseId);
+    }
+
+    // 校验创建工单请求，避免缺少核心关联字段。
+    private String validateCreateWorkOrder(CreateWorkOrderRequest request) {
+        if (trimToEmpty(request.getCaseId()).isBlank()) {
+            return "case_id is required";
+        }
+        if (trimToEmpty(request.getTitle()).isBlank()) {
+            return "title is required";
+        }
+        String status = normalizeWorkOrderStatus(request.getStatus());
+        if (!status.isBlank() && !allowedWorkOrderStatuses().contains(status)) {
+            return "unsupported work order status: " + status;
+        }
+        return "";
+    }
+
+    // 构建工单实体，并在缺省状态时使用 TODO。
+    private CaseWorkOrderEntity buildWorkOrderEntity(CreateWorkOrderRequest request) {
+        LocalDateTime now = LocalDateTime.now();
+        String status = normalizeWorkOrderStatus(request.getStatus());
+
+        CaseWorkOrderEntity entity = new CaseWorkOrderEntity();
+        entity.setWorkOrderId("wo-" + UUID.randomUUID());
+        entity.setCaseId(trimToEmpty(request.getCaseId()));
+        entity.setRiskCardId(trimToEmpty(request.getRiskCardId()));
+        entity.setRiskType(trimToEmpty(request.getRiskType()));
+        entity.setRiskLevel(trimToEmpty(request.getRiskLevel()));
+        entity.setTitle(trimToEmpty(request.getTitle()));
+        entity.setSummary(trimToEmpty(request.getSummary()));
+        entity.setRecommendedAction(trimToEmpty(request.getRecommendedAction()));
+        entity.setStatus(status.isBlank() ? "TODO" : status);
+        entity.setAssignee(trimToEmpty(request.getAssignee()));
+        entity.setDeadline(trimToEmpty(request.getDeadline()));
+        entity.setClosureNote("");
+        entity.setEvidenceSummaryJson(defaultEvidenceSummaryJson(request.getEvidenceSummaryJson()));
+        entity.setSchemaVersion(defaultWorkOrderSchemaVersion(request.getSchemaVersion()));
+        entity.setCreatedAt(now);
+        entity.setUpdatedAt(now);
+        return entity;
+    }
+
+    // 保存工单；数据库不可用时写入内存兜底。
+    private void saveWorkOrder(CaseWorkOrderEntity entity) {
+        try {
+            caseWorkOrderMapper.insert(entity);
+            workOrderMemoryStore.put(entity.getWorkOrderId(), entity);
+        } catch (Exception ignored) {
+            workOrderMemoryStore.put(entity.getWorkOrderId(), entity);
+        }
+    }
+
+    // 更新工单；数据库不可用或更新失败时写入内存兜底。
+    private void updateWorkOrder(CaseWorkOrderEntity entity) {
+        try {
+            if (entity.getId() != null) {
+                caseWorkOrderMapper.updateById(entity);
+            }
+            workOrderMemoryStore.put(entity.getWorkOrderId(), entity);
+        } catch (Exception ignored) {
+            workOrderMemoryStore.put(entity.getWorkOrderId(), entity);
+        }
+    }
+
+    // 按 work_order_id 查询工单；数据库未命中时回退内存缓存。
+    private CaseWorkOrderEntity findWorkOrderById(String workOrderId) {
+        try {
+            CaseWorkOrderEntity entity = caseWorkOrderMapper.selectOne(
+                    new LambdaQueryWrapper<CaseWorkOrderEntity>()
+                            .eq(CaseWorkOrderEntity::getWorkOrderId, workOrderId)
+            );
+            if (entity != null) {
+                return entity;
+            }
+        } catch (Exception ignored) {
+            return workOrderMemoryStore.get(workOrderId);
+        }
+        return workOrderMemoryStore.get(workOrderId);
+    }
+
+    // 按 case_id 查询工单列表；数据库失败时从内存缓存过滤。
+    private List<CaseWorkOrderEntity> findWorkOrdersByCaseId(String caseId) {
+        try {
+            List<CaseWorkOrderEntity> entities = caseWorkOrderMapper.selectList(
+                    new LambdaQueryWrapper<CaseWorkOrderEntity>()
+                            .eq(CaseWorkOrderEntity::getCaseId, caseId)
+            );
+            if (entities != null && !entities.isEmpty()) {
+                return entities;
+            }
+        } catch (Exception ignored) {
+            return findWorkOrdersByCaseIdFromMemory(caseId);
+        }
+        return findWorkOrdersByCaseIdFromMemory(caseId);
+    }
+
+    // 从内存缓存中过滤某个 case 的工单。
+    private List<CaseWorkOrderEntity> findWorkOrdersByCaseIdFromMemory(String caseId) {
+        return workOrderMemoryStore.values().stream()
+                .filter(entity -> caseId.equals(entity.getCaseId()))
+                .toList();
+    }
+
+    // 回写或插入 agent_result_json；用于工单生成后的最终快照。
+    private void upsertAgentResult(String caseId, String agentResultJson) {
+        CaseAgentResultEntity entity = buildAgentResultEntity(caseId, agentResultJson);
+        try {
+            CaseAgentResultEntity existing = agentResultMapper.selectOne(
+                    new LambdaQueryWrapper<CaseAgentResultEntity>()
+                            .eq(CaseAgentResultEntity::getCaseId, caseId)
+            );
+            if (existing != null) {
+                entity.setId(existing.getId());
+                entity.setCreatedAt(existing.getCreatedAt());
+                agentResultMapper.updateById(entity);
+            } else {
+                agentResultMapper.insert(entity);
+            }
+            agentResultMemoryStore.put(caseId, entity);
+        } catch (Exception ignored) {
+            agentResultMemoryStore.put(caseId, entity);
+        }
+    }
+
+    // 将工单实体转换为 gRPC 响应。
+    private WorkOrderReply toWorkOrderReply(CaseWorkOrderEntity entity) {
+        return WorkOrderReply.newBuilder()
+                .setWorkOrderId(nullSafe(entity.getWorkOrderId()))
+                .setCaseId(nullSafe(entity.getCaseId()))
+                .setRiskCardId(nullSafe(entity.getRiskCardId()))
+                .setRiskType(nullSafe(entity.getRiskType()))
+                .setRiskLevel(nullSafe(entity.getRiskLevel()))
+                .setTitle(nullSafe(entity.getTitle()))
+                .setSummary(nullSafe(entity.getSummary()))
+                .setRecommendedAction(nullSafe(entity.getRecommendedAction()))
+                .setStatus(normalizeWorkOrderStatus(entity.getStatus()))
+                .setAssignee(nullSafe(entity.getAssignee()))
+                .setDeadline(nullSafe(entity.getDeadline()))
+                .setClosureNote(nullSafe(entity.getClosureNote()))
+                .setEvidenceSummaryJson(defaultEvidenceSummaryJson(entity.getEvidenceSummaryJson()))
+                .setSchemaVersion(defaultWorkOrderSchemaVersion(entity.getSchemaVersion()))
+                .setCreatedAt(entity.getCreatedAt() == null ? "" : entity.getCreatedAt().toString())
+                .setUpdatedAt(entity.getUpdatedAt() == null ? "" : entity.getUpdatedAt().toString())
+                .build();
+    }
+
+    // 统一工单状态格式，前端传小写时也能兼容。
+    private String normalizeWorkOrderStatus(String status) {
+        return trimToEmpty(status).toUpperCase(Locale.ROOT);
+    }
+
+    // 返回当前 MVP 支持的工单状态集合。
+    private Set<String> allowedWorkOrderStatuses() {
+        return Set.of("TODO", "ASSIGNED", "IN_PROGRESS", "REVIEWED", "CLOSED");
+    }
+
+    // 缺省工单版本，保证旧调用也能返回稳定 schema。
+    private String defaultWorkOrderSchemaVersion(String schemaVersion) {
+        String normalized = trimToEmpty(schemaVersion);
+        return normalized.isBlank() ? "case_work_order.v1" : normalized;
+    }
+
+    // 缺省证据摘要 JSON，避免 JSON 字段收到空字符串。
+    private String defaultEvidenceSummaryJson(String evidenceSummaryJson) {
+        String normalized = trimToEmpty(evidenceSummaryJson);
+        return normalized.isBlank() ? "[]" : normalized;
     }
 
     // 将数据库实体转换为 gRPC 响应。

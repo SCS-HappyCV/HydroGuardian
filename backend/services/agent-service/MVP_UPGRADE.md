@@ -19,7 +19,7 @@ parse_task -> build_program -> prepare_scene_sample -> execute_3d
 | 3D 证据执行 | 调 `/execute` 和 `/compile_evidence` | 单次调用、弱重试、失败证据包较粗 | P0 |
 | 变化检测 | temporal 任务按 pre/post 图片调用 | ChangePack 很薄，mask 未落库，阈值硬编码 | P1 |
 | 风险评分 | 基于 EvidencePack 的规则加权 | 权重和阈值未校准，缺少业务风险基准 | P1 |
-| 建议/工单 | 一个节点生成 recommendation 和 work order | 静态文案、静态 assignee、无派单闭环 | P1 |
+| 建议/工单 | 已拆分 recommendation 和 work order，并由 case-service 生成真实工单 | 状态流转仍是 MVP，缺少 SLA、关闭验收和外部派单系统 | P1 |
 | Case 持久化 | 保存摘要到 case-service | 未持久化完整 evidence、trace、artifact | P0 |
 | API 返回 | gRPC/网关只返回摘要 | trace/errors/evidence 不对上游暴露 | P0 |
 | 可观测性和测试 | 有基础 print 日志和 trace 数组 | 缺少结构化日志、指标、自动化测试 | P0 |
@@ -212,20 +212,19 @@ MVP 点：
 当前已经具备：
 
 - 根据风险等级生成 recommendation。
-- 同时生成一个 work order。
+- recommendation 和 work order 已拆成独立节点。
+- agent-service 先生成工单草稿，case 落库后调用 case-service 创建真实 `work_order_id`。
+- api-gateway 已提供工单查询和状态更新接口。
 
 MVP 点：
 
-- recommendation 和 work order 在同一个节点里生成，职责没有拆开。
 - 文案是固定模板，缺少与风险类型、证据摘要、区域信息的细粒度绑定。
-- `recommendation_id` 和 `work_order_id` 是静态值。
-- assignee 固定为 `field_team_a` 或空字符串。
-- 没有真实派单、状态流转、SLA、关闭验证。
+- `recommendation_id` 仍是本次执行内的轻量 ID，尚未作为独立数据库对象持久化。
+- assignee 仍按风险等级简单推导。
+- 工单状态已支持 `TODO / ASSIGNED / IN_PROGRESS / REVIEWED / CLOSED`，但还没有 SLA、关闭验证和外部派单系统。
 
 升级建议：
 
-- 拆成 `generate_recommendation` 和 `create_work_order` 两个节点。
-- work order id 由 case-service 或 workflow-service 生成。
 - 根据 `risk_type / risk_level / candidate_region / evidence_summary` 生成更具体的处置建议。
 - 接入外部派单系统或 case-service 的工单表。
 - 增加状态流转：`todo -> assigned -> in_progress -> reviewed -> closed`。
@@ -360,7 +359,7 @@ MVP 点：
 2. ProgramBuilder 支持多候选和 schema 校验。
 3. 风险评分拆分风险类型，并输出 `score_breakdown`。
 4. ChangePack 保存 mask artifact，并与 3D candidate region 融合。
-5. recommendation 和 work order 拆成独立节点，接入真实工单状态。
+5. recommendation 和 work order 继续增强 SLA、关闭验收和外部派单系统。
 
 ### P2：走向生产治理
 
@@ -393,4 +392,3 @@ task_contract/task_openai_parser
 -> recommendation/work_order
 -> case persistence/API protocol
 ```
-

@@ -10,8 +10,13 @@ option java_outer_classname = "CaseProto";
 service CaseRpcService {
   rpc CreateCase (CreateCaseRequest) returns (CaseReply);
   rpc GetCase (GetCaseRequest) returns (CaseReply);
+  rpc UpdateCaseAgentResult (UpdateCaseAgentResultRequest) returns (CaseReply);
   rpc CreateSceneManifest (CreateSceneManifestRequest) returns (SceneManifestReply);
   rpc GetSceneManifest (GetSceneManifestRequest) returns (SceneManifestReply);
+  rpc CreateWorkOrder (CreateWorkOrderRequest) returns (WorkOrderReply);
+  rpc GetWorkOrder (GetWorkOrderRequest) returns (WorkOrderReply);
+  rpc ListCaseWorkOrders (ListCaseWorkOrdersRequest) returns (ListCaseWorkOrdersReply);
+  rpc UpdateWorkOrderStatus (UpdateWorkOrderStatusRequest) returns (WorkOrderReply);
   rpc RegisterUser (RegisterUserRequest) returns (RegisterUserReply);
   rpc LoginUser (LoginUserRequest) returns (LoginUserReply);
 }
@@ -44,6 +49,12 @@ message CaseReply {
   string tags = 8;
   string created_at = 9;
   string agent_result_json = 10;
+}
+
+// 回写智能体完整快照；用于工单创建后把真实 work_order_id 更新进 case_agent_result。
+message UpdateCaseAgentResultRequest {
+  string case_id = 1;
+  string agent_result_json = 2;
 }
 
 // 创建或更新场景资产清单；scene_sample_file_id 指向预处理后的 SceneTensorSample JSON。
@@ -79,6 +90,65 @@ message SceneManifestReply {
   string created_at = 10;
   string updated_at = 11;
   string schema_version = 12;
+}
+
+// 创建工单请求；agent-service 会在 case 落库后调用它生成真实 work_order_id。
+message CreateWorkOrderRequest {
+  string case_id = 1;
+  string risk_card_id = 2;
+  string risk_type = 3;
+  string risk_level = 4;
+  string title = 5;
+  string summary = 6;
+  string recommended_action = 7;
+  string assignee = 8;
+  string status = 9;
+  string deadline = 10;
+  string evidence_summary_json = 11;
+  string schema_version = 12;
+}
+
+// 查询单个工单请求。
+message GetWorkOrderRequest {
+  string work_order_id = 1;
+}
+
+// 按 case_id 查询工单列表请求。
+message ListCaseWorkOrdersRequest {
+  string case_id = 1;
+}
+
+// 更新工单状态请求；assignee 和 closure_note 为空时保持原值。
+message UpdateWorkOrderStatusRequest {
+  string work_order_id = 1;
+  string status = 2;
+  string assignee = 3;
+  string closure_note = 4;
+}
+
+// 工单响应；字段直接对齐 case_work_order 表。
+message WorkOrderReply {
+  string work_order_id = 1;
+  string case_id = 2;
+  string risk_card_id = 3;
+  string risk_type = 4;
+  string risk_level = 5;
+  string title = 6;
+  string summary = 7;
+  string recommended_action = 8;
+  string status = 9;
+  string assignee = 10;
+  string deadline = 11;
+  string closure_note = 12;
+  string evidence_summary_json = 13;
+  string schema_version = 14;
+  string created_at = 15;
+  string updated_at = 16;
+}
+
+// 按 case 查询工单列表响应。
+message ListCaseWorkOrdersReply {
+  repeated WorkOrderReply work_orders = 1;
 }
 
 // 注册用户请求。

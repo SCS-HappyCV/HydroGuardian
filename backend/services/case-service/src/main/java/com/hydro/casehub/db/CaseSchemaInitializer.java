@@ -20,6 +20,7 @@ public class CaseSchemaInitializer {
     @PostConstruct
     public void initializeSchema() {
         createCaseAgentResultTable();
+        createCaseWorkOrderTable();
         createSceneAssetManifestTable();
     }
 
@@ -38,6 +39,38 @@ public class CaseSchemaInitializer {
                     """);
         } catch (Exception ignored) {
             // 数据库短暂不可用时保持服务可启动，运行期仍会沿用原有内存兜底策略。
+        }
+    }
+
+    // 创建工单表，保存智能体生成的真实处置闭环记录。
+    private void createCaseWorkOrderTable() {
+        try {
+            jdbcTemplate.execute("""
+                    CREATE TABLE IF NOT EXISTS case_work_order (
+                        id BIGINT PRIMARY KEY AUTO_INCREMENT,
+                        work_order_id VARCHAR(64) NOT NULL UNIQUE,
+                        case_id VARCHAR(64) NOT NULL,
+                        risk_card_id VARCHAR(64),
+                        risk_type VARCHAR(128),
+                        risk_level VARCHAR(32),
+                        title VARCHAR(255) NOT NULL,
+                        summary TEXT,
+                        recommended_action TEXT,
+                        status VARCHAR(32) NOT NULL,
+                        assignee VARCHAR(64),
+                        deadline VARCHAR(64),
+                        closure_note TEXT,
+                        evidence_summary_json JSON,
+                        schema_version VARCHAR(64) NOT NULL DEFAULT 'case_work_order.v1',
+                        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                        INDEX idx_case_work_order_case_id (case_id),
+                        INDEX idx_case_work_order_status (status),
+                        INDEX idx_case_work_order_assignee (assignee)
+                    )
+                    """);
+        } catch (Exception ignored) {
+            // 数据库短暂不可用时保持服务可启动；gRPC 层会写入内存兜底缓存。
         }
     }
 

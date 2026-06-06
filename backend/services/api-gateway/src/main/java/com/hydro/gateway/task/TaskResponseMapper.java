@@ -2,6 +2,8 @@
 // 该 mapper 用来把协议细节从控制器中隔离出去。
 package com.hydro.gateway.task;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hydro.grpc.agentv1.AgentErrorItem;
 import com.hydro.grpc.agentv1.AgentTraceItem;
 import com.hydro.grpc.agentv1.ExecuteTaskReply;
@@ -10,6 +12,10 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 final class TaskResponseMapper {
+
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+    private static final TypeReference<Object> JSON_TYPE = new TypeReference<>() {
+    };
 
     // 工具类，不需要实例化。
     private TaskResponseMapper() {
@@ -29,6 +35,7 @@ final class TaskResponseMapper {
                 "reviewRequired", reply.getReviewRequired()
         ));
         data.put("recommendation", Map.of("action", reply.getRecommendationAction()));
+        data.put("workOrders", parseJson(reply.getWorkOrdersJson()));
         data.put("case", Map.of(
                 "caseId", reply.getCaseId(),
                 "status", reply.getCaseStatus(),
@@ -55,6 +62,18 @@ final class TaskResponseMapper {
                     .toList());
         }
         return data;
+    }
+
+    // 将 agent-service 返回的工单 JSON 转成对象；解析失败时保留原始字符串。
+    private static Object parseJson(String rawJson) {
+        if (rawJson == null || rawJson.isBlank()) {
+            return java.util.List.of();
+        }
+        try {
+            return OBJECT_MAPPER.readValue(rawJson, JSON_TYPE);
+        } catch (Exception ignored) {
+            return rawJson;
+        }
     }
 
     // 将 trace proto item 转成通用事件 map 结构。
