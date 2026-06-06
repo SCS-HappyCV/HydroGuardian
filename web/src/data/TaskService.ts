@@ -1,8 +1,11 @@
+// 任务数据服务：统一管理任务静态样本、本地持久化和视图对象转换。
 import type { TaskData, TaskFilterKey } from './TaskData'
 import { getById as getTemplateById } from './TaskTemplateService'
 import { getById as getZoneById } from './ZoneService'
 import { getById as getUserById } from './UserService'
 import { getById as getTaskResultById } from './TaskResultService'
+
+const STORAGE_KEY = 'hydroguardian_task_data'
 
 export interface TaskVO extends TaskData {
   templateName?: string
@@ -200,14 +203,24 @@ export const taskDataList: TaskData[] = [
   }
 ]
 
-export function getAll(): TaskData[] {
+// 同步内存任务列表，保证页面跳转后同一运行时读取到最新任务。
+function syncTaskDataList(items: TaskData[]): TaskData[] {
+  taskDataList.splice(0, taskDataList.length, ...items)
   return taskDataList
 }
 
-export function getById(id: string): TaskData | undefined {
-  return taskDataList.find((item) => item.id === id)
+// 读取全部任务；浏览器环境优先使用 localStorage，SSR 阶段使用静态样本。
+export function getAll(): TaskData[] {
+  const persisted = loadPersisted()
+  return persisted ? syncTaskDataList(persisted) : taskDataList
 }
 
+// 按任务 ID 查询单个任务，包含用户在任务工作坊中新建的本地任务。
+export function getById(id: string): TaskData | undefined {
+  return getAll().find((item) => item.id === id)
+}
+
+// 按关键词、筛选和排序条件查询任务列表。
 export function query(params: {
   keyword?: string
   filter?: Partial<Record<TaskFilterKey, string | string[]>>
@@ -216,7 +229,7 @@ export function query(params: {
 }): TaskData[] {
   const keyword = params.keyword?.trim().toLowerCase()
   const filter = params.filter ?? {}
-  const result = taskDataList.filter((item) => {
+  const result = getAll().filter((item) => {
     const matchKeyword = !keyword || [item.id, item.name, item.inputText, item.status, item.priority].some((val) => val.toLowerCase().includes(keyword))
     const matchFilter = Object.entries(filter).every(([key, val]) => {
       if (val === undefined) return true
@@ -236,17 +249,28 @@ export function query(params: {
   })
 }
 
+// 从 localStorage 读取任务列表，解析失败时回退为空值以避免页面崩溃。
 export function loadPersisted(): TaskData[] | null {
   if (typeof localStorage === 'undefined') return null
-  const raw = localStorage.getItem('hydroguardian_task_data')
-  return raw ? (JSON.parse(raw) as TaskData[]) : null
+  const raw = localStorage.getItem(STORAGE_KEY)
+  if (!raw) return null
+
+  try {
+    const items = JSON.parse(raw) as TaskData[]
+    return Array.isArray(items) ? items : null
+  } catch {
+    return null
+  }
 }
 
+// 保存任务列表到 localStorage，并同步当前运行时内存列表。
 export function savePersisted(items: TaskData[]): void {
+  syncTaskDataList(items)
   if (typeof localStorage === 'undefined') return
-  localStorage.setItem('hydroguardian_task_data', JSON.stringify(items))
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(items))
 }
 
+// 查询任务视图对象，附带模板、区域、创建人和结果摘要。
 export function getByIdVO(id: string): TaskVO | undefined {
   const item = getById(id)
   if (!item) return undefined
@@ -259,6 +283,7 @@ export function getByIdVO(id: string): TaskVO | undefined {
   }
 }
 
+// 查询任务视图对象列表，供表格和历史页面直接渲染。
 export function queryVO(params: {
   keyword?: string
   filter?: Partial<Record<TaskFilterKey, string | string[]>>

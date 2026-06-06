@@ -1,16 +1,17 @@
 <script setup lang="ts">
+// Select 下拉内容容器：负责把 reka-ui 的内容层、视口和滚动按钮组合成统一样式。
 import type { SelectContentEmits, SelectContentProps } from "reka-ui"
 import type { HTMLAttributes } from "vue"
 import { reactiveOmit } from "@vueuse/core"
 import {
   SelectContent,
-
   SelectPortal,
   SelectViewport,
   useForwardPropsEmits,
 } from "reka-ui"
 import { cn } from "@/lib/utils"
-import { SelectScrollDownButton, SelectScrollUpButton } from "."
+import SelectScrollDownButton from "./SelectScrollDownButton.vue"
+import SelectScrollUpButton from "./SelectScrollUpButton.vue"
 
 defineOptions({
   inheritAttrs: false,
@@ -24,8 +25,10 @@ const props = withDefaults(
 )
 const emits = defineEmits<SelectContentEmits>()
 
+// 去掉 class 后再透传给 reka-ui，避免自定义样式字段落到根组件属性里。
 const delegatedProps = reactiveOmit(props, "class")
 
+// 统一转发 props 和 emits，让外层组件保持和 reka-ui 原生 SelectContent 一致的交互契约。
 const forwarded = useForwardPropsEmits(delegatedProps, emits)
 </script>
 

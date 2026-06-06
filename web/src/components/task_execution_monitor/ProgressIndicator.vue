@@ -1,42 +1,32 @@
-
+<!-- 执行进度条：展示任务当前状态和百分比，真实快照由父组件传入阶段映射进度。 -->
 <script setup lang="ts">
 import { computed } from 'vue'
 import { Progress } from '@/components/ui/progress'
 import SafeIcon from '@/components/common/SafeIcon.vue'
+import { cn } from '@/lib/utils'
 
 const props = defineProps<{
   progress: number
   status: 'queued' | 'running' | 'success' | 'failed'
 }>()
 
+// 根据任务状态生成中文状态文案。
 const statusText = computed(() => {
   const map = {
     queued: '等待执行...',
     running: '执行中...',
     success: '执行完成',
-    failed: '执行失败'
+    failed: '执行失败',
   }
   return map[props.status] || '未知状态'
 })
 
-const statusColor = computed(() => {
-  switch (props.status) {
-    case 'success':
-      return 'bg-[hsl(var(--success))]'
-    case 'failed':
-      return 'bg-destructive'
-    case 'running':
-      return 'bg-primary'
-    default:
-      return 'bg-muted'
-  }
-})
-
+// 限制进度百分比范围，避免异常数据撑破进度条。
 const displayProgress = computed(() => {
+  const value = Math.round(props.progress)
   if (props.status === 'queued') return 0
   if (props.status === 'success') return 100
-  if (props.status === 'failed') return props.progress
-  return props.progress
+  return Math.max(0, Math.min(100, value))
 })
 </script>
 
@@ -44,7 +34,7 @@ const displayProgress = computed(() => {
   <div class="surface-base card-padding space-y-3">
     <div class="flex items-center justify-between">
       <div class="flex items-center gap-2">
-        <SafeIcon 
+        <SafeIcon
           :name="status === 'running' ? 'Loader2' : status === 'success' ? 'CheckCircle2' : status === 'failed' ? 'XCircle' : 'Clock'"
           :size="18"
           :class="cn(
@@ -59,8 +49,8 @@ const displayProgress = computed(() => {
       <span class="text-sm font-semibold text-primary">{{ displayProgress }}%</span>
     </div>
 
-    <Progress 
-      :value="displayProgress" 
+    <Progress
+      :value="displayProgress"
       class="h-2"
       :class="cn(
         '[&>div]:transition-all [&>div]:duration-500',

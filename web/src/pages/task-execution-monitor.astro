@@ -1,9 +1,10 @@
 
 ---
+// 任务执行监控页：挂载 Vue 监控组件，并统一使用详情页布局。
 import DetailLayout from '@/layouts/DetailLayout.astro'
-import TaskExecutionMonitor from '@/components/task_execution_monitor/TaskExecutionMonitor.vue'
+import TaskExecutionMonitorView from '@/components/task_execution_monitor/TaskExecutionMonitor.vue'
 ---
 
 <DetailLayout title="任务执行监控">
-  <TaskExecutionMonitor client:load />
+  <TaskExecutionMonitorView client:load />
 </DetailLayout>

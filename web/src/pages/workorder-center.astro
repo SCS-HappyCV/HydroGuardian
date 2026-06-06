@@ -1,9 +1,10 @@
 
 ---
+// 工单处理中心页：静态页面只挂载 Vue 业务组件，查询参数由客户端组件读取。
 import StandardLayout from '@/layouts/StandardLayout.astro'
 import WorkorderCenterContent from '@/components/workorder_center/WorkorderCenterContent.vue'
 ---
 
 <StandardLayout title="工单处理中心">
-  <WorkorderCenterContent client:load currentPath={Astro.url.pathname} searchParams={Astro.url.searchParams} />
+  <WorkorderCenterContent client:load />
 </StandardLayout>

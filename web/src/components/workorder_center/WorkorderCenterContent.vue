@@ -1,5 +1,6 @@
 
 <script setup lang="ts">
+// 工单处理中心主组件：负责工单列表筛选、分页、详情抽屉和创建弹窗的交互。
 import { ref, computed, watch, onMounted } from 'vue'
 import { toast } from 'vue-sonner'
 import { Button } from '@/components/ui/button'
@@ -19,11 +20,6 @@ import WorkorderDetailPanel from './WorkorderDetailPanel.vue'
 import WorkorderCreateDialog from './WorkorderCreateDialog.vue'
 import * as WorkorderService from '@/data/WorkorderService'
 import type { WorkorderVO } from '@/data/WorkorderService'
-import * as RiskEventService from '@/data/RiskEventService'
-
-const props = defineProps<{
-  currentPath: string
-}>()
 
 const isClient = ref(true)
 const allWorkorders = ref(WorkorderService.getAll())
@@ -37,6 +33,7 @@ const searchKeyword = ref('')
 const currentPage = ref(1)
 const pageSize = ref(10)
 
+// 根据状态和关键词过滤工单列表，保持列表、分页和统计使用同一份数据源。
 const filteredWorkorders = computed(() => {
   let result = allWorkorders.value
 
@@ -56,7 +53,10 @@ const filteredWorkorders = computed(() => {
   return result
 })
 
+// 计算当前筛选条件下的总页数。
 const totalPages = computed(() => Math.ceil(filteredWorkorders.value.length / pageSize.value))
+
+// 按当前页码和分页大小截取表格实际展示的数据。
 const paginatedWorkorders = computed(() => {
   const start = (currentPage.value - 1) * pageSize.value
   const end = start + pageSize.value
@@ -71,6 +71,7 @@ const tableColumns = [
   { key: 'dueAt', label: '截止时间', width: 'w-32', sortable: true },
 ]
 
+// 点击表格行后加载完整工单视图对象，并打开右侧详情面板。
 const handleRowClick = (row: any) => {
   const vo = WorkorderService.getByIdVO(row.id)
   if (vo) {
@@ -79,10 +80,12 @@ const handleRowClick = (row: any) => {
   }
 }
 
+// 打开创建工单弹窗。
 const handleCreateWorkorder = () => {
   showCreateDialog.value = true
 }
 
+// 工单创建成功后刷新列表，并回到第一页方便看到最新数据。
 const handleWorkorderCreated = (newWorkorder: any) => {
   allWorkorders.value = WorkorderService.getAll()
   toast.success('工单创建成功')
@@ -90,25 +93,30 @@ const handleWorkorderCreated = (newWorkorder: any) => {
   currentPage.value = 1
 }
 
+// 切换状态筛选时重置页码，避免停留在无数据的高页码。
 const handleStatusChange = (newStatus: string) => {
   statusFilter.value = newStatus
   currentPage.value = 1
 }
 
+// 切换当前页。
 const handlePageChange = (page: number) => {
   currentPage.value = page
 }
 
+// 切换分页大小时回到第一页。
 const handlePageSizeChange = (size: number) => {
   pageSize.value = size
   currentPage.value = 1
 }
 
+// 关闭详情面板并清理当前选择。
 const handleCloseDetailPanel = () => {
   showDetailPanel.value = false
   selectedWorkorder.value = null
 }
 
+// 详情面板修改工单后刷新列表和当前选中工单。
 const handleDetailPanelUpdate = () => {
   allWorkorders.value = WorkorderService.getAll()
   if (selectedWorkorder.value) {
@@ -119,6 +127,7 @@ const handleDetailPanelUpdate = () => {
   }
 }
 
+// 页面挂载后读取 URL 查询参数，支持从风险页带 riskId 进入创建工单流程。
 onMounted(() => {
   isClient.value = false
   requestAnimationFrame(() => {
@@ -139,6 +148,7 @@ onMounted(() => {
   })
 })
 
+// 筛选结果变化后自动修正页码，防止当前页超过总页数。
 watch(() => filteredWorkorders.value.length, () => {
   if (currentPage.value > totalPages.value && totalPages.value > 0) {
     currentPage.value = totalPages.value

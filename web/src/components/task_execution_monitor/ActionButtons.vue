@@ -1,9 +1,9 @@
-
+<!-- 任务操作区：根据任务状态展示停止、重试、修改参数、查看结果和系统健康入口。 -->
 <script setup lang="ts">
 import { Button } from '@/components/ui/button'
 import SafeIcon from '@/components/common/SafeIcon.vue'
 
-const props = defineProps<{
+defineProps<{
   status: 'queued' | 'running' | 'success' | 'failed'
   isRunning: boolean
   isSuccess: boolean
@@ -23,7 +23,7 @@ const emit = defineEmits<{
 <template>
   <div class="surface-base card-padding flex flex-wrap items-center gap-3">
     <template v-if="isRunning">
-      <Button 
+      <Button
         variant="destructive"
         class="gap-2"
         @click="emit('stop')"
@@ -37,7 +37,7 @@ const emit = defineEmits<{
     </template>
 
     <template v-else-if="isSuccess">
-      <Button 
+      <Button
         class="gap-2 bg-[hsl(var(--success))] hover:bg-[hsl(var(--success))]/90 text-white"
         @click="emit('view-results')"
       >
@@ -50,14 +50,14 @@ const emit = defineEmits<{
     </template>
 
     <template v-else-if="isFailed">
-      <Button 
+      <Button
         class="gap-2"
         @click="emit('retry')"
       >
         <SafeIcon name="RotateCcw" :size="16" />
         重新执行
       </Button>
-      <Button 
+      <Button
         variant="outline"
         class="gap-2"
         @click="emit('modify-params')"
@@ -65,7 +65,7 @@ const emit = defineEmits<{
         <SafeIcon name="Edit2" :size="16" />
         修改参数
       </Button>
-      <Button 
+      <Button
         variant="ghost"
         class="gap-2 text-destructive hover:text-destructive hover:bg-destructive/10"
         @click="emit('view-system-health')"
@@ -79,7 +79,7 @@ const emit = defineEmits<{
     </template>
 
     <template v-else-if="isQueued">
-      <Button 
+      <Button
         variant="outline"
         class="gap-2"
         @click="emit('modify-params')"
