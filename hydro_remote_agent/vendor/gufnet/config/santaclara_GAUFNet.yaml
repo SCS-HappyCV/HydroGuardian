@@ -1,0 +1,153 @@
+# SantaClara / N3C-California 数据集配置
+# GAUFNet Baseline 配置
+# 基于 wcs2d3d_baseline.yaml 适配
+
+format_version: 1
+
+###################
+## Model options
+model_params:
+  model_architecture: "arch_acmf"
+
+  input_dims: 5 # xyz(3) + intensity(1) + return_num(1), 点云自带特征
+  spatial_shape: # 体素网格维度 (voxel_size≈0.25m, 稀疏卷积只存非空体素)
+    #    - 7780
+    #    - 7344
+    #    - 4636
+    - 3890
+    - 3672
+    - 2318
+  scale_list:
+    - 2
+    - 4
+    - 8
+    - 16
+
+  hiden_size: 64
+  num_classes: 5 # 5 个类别: unlabeled(0) + others(1) + ground(2) + tree(3) + building(4)
+  backbone_2d: FastSCNN
+  pretrained2d: False
+  use_LGC: True
+  use_strip_pooling: True
+
+  fusion_type: "acmf_cmf4"
+  cmf_bits: 10
+  cmf_use_hilbert: True # 关闭 Hilbert 排序；batch_size=1 时纯开销，无空间局部性收益
+  cmf_d_state: 16 # 从 16→8，减半 SSM 状态矩阵计算量
+  cmf_d_conv: 4
+  cmf_expand: 2
+  cmf_geo_scale_mode: "residual"
+  cmf_ctx_detach: False
+  cmf_use_uncertainty_gated: True
+  cmf_use_geo_conditioned: True
+  cmf_geo_mode: "coord"
+  cmf_uncertainty_detach: True
+  use_zmap: True # 是否拼接 Z-map 到 2D 输入
+  use_gata: True # 是否启用 GATA 模块
+  g3d_channels: 7 # G3D 几何图通道数 (nx,ny,nz,curvature,z_norm,grad_x,grad_y)
+  gata_out_channels: 32 # GATA 输出特征通道数
+  g3d_knn_k: 20 # G3D 法向/曲率估计的 KNN 邻域大小
+
+  # PUAF 混合不确定性（Aleatoric + Epistemic）超参
+  puaf_enable_epistemic: True # 是否启用 epistemic（MC Dropout）不确定性；False 则退化为仅 aleatoric
+  puaf_mc_samples: 1 # MC Dropout 采样次数 T；越大估计越稳但训练时间线性增长
+  puaf_dropout_p: 0.2 # UQ head 内部 MC Dropout 概率；仅作用于不确定性分支，不影响主干
+  puaf_lambda_e: 1.0 # epistemic 权重系数 λ_e；u = u_a + λ_e · u_e
+  puaf_epistemic_in_eval: False # eval 模式下是否仍执行 MC 采样；False 保证推理确定性与速度
+
+###################
+## Dataset options
+dataset_params:
+  training_size: 8563 # train split 文件数
+  dataset_type: "point_image_dataset_wcs2d3d" # 复用 WCS2D3D 的 task dataset (正射投影, 无前向过滤)
+  Wandb_Project: "GAUFNet_SantaClara"
+  pc_dataset_type: "SantaClara" # 点云数据集类名
+  collate_type: "collate_fn_default"
+  ignore_label: 0 # unlabeled 类别 index
+
+  label_mapping: "config/label_mapping/santaclara.yaml"
+  preprocessed_data:
+    enabled: true
+    path: "/data/n3c-california-mini"
+
+  # 2D augmentation
+  bottom_crop:
+    - 480
+    - 480
+  max_img_pts: 250000 # 3D→2D 投影点数上限；超出时随机均匀降采样，防止大 tile 导致显存峰值
+  color_jitter:
+    - 0.4
+    - 0.4
+    - 0.4
+  flip2d: 0.5
+  image_normalizer:
+    - [0.485, 0.456, 0.406]
+    - [0.229, 0.224, 0.225]
+
+  # 体素化空间范围 (中心化坐标, 10% 余量)
+  # 实测: x∈[-878, 741], y∈[-734, 795], z∈[-496, 469]
+  max_volume_space:
+    - 904
+    - 948
+    - 566
+  min_volume_space:
+    - -1041
+    - -888
+    - -593
+
+  # 类别权重 (5 个类别, 实际统计值)
+  # index 0 = unlabeled, 权重设 0 不参与损失
+  seg_labelweights:
+    - 0 # index 0: unlabeled (ignored)
+    - 352081475 # index 1: others
+    - 1177423930 # index 2: ground
+    - 1740143035 # index 3: tree
+    - 432635732 # index 4: building
+
+  train_data_loader:
+    data_path: "/data/n3c-california-mini"
+    batch_size: 2
+    shuffle: True
+    num_workers: 4
+    prefetch_factor: 2
+    persistent_workers: True
+    rotate_aug: True
+    flip_aug: True
+    scale_aug: True
+    transform_aug: True
+    dropout_aug: True
+
+  val_data_loader:
+    data_path: "/data/n3c-california-mini"
+    shuffle: False
+    num_workers: 4
+    prefetch_factor: 2
+    persistent_workers: True
+    batch_size: 2
+    rotate_aug: False
+    flip_aug: False
+    scale_aug: False
+    transform_aug: False
+    dropout_aug: False
+
+###################
+## Train params
+train_params:
+  max_num_epochs: 100
+  learning_rate: 0.18
+  optimizer: SGD # [SGD, Adam]
+  lr_scheduler: CosineAnnealingWarmRestarts
+  momentum: 0.9
+  nesterov: True
+  weight_decay: 1.0e-4
+
+  lambda_seg2d: 1
+  lambda_xm: 0.05
+  lambda_lovasz: 0.1
+
+  debug_profile:
+    enabled: false
+    interval: 1
+
+  puaf_vis:
+    enabled: false

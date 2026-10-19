@@ -1,0 +1,36 @@
+{
+  "schema_version": "1.0",
+  "request_id": "demo_relation_01",
+  "intent": "relation_segmentation",
+  "action": {
+    "type": "workflow",
+    "steps": [
+      {
+        "step_id": "segment",
+        "tool": "multimodal_semantic_segmentation",
+        "arguments": {
+          "image_path": "tile.png",
+          "point_cloud_path": "tile.txt",
+          "target_class_ids": [4, 13]
+        }
+      },
+      {
+        "step_id": "relation",
+        "tool": "geometry_relation_analysis",
+        "depends_on": ["segment"],
+        "arguments": {
+          "point_cloud_path": "tile.txt",
+          "segmentation_result_path": "${segment.artifacts.point_labels}",
+          "operation": "near",
+          "target_class_id": 4,
+          "reference_class_id": 13,
+          "distance_threshold_m": 3.0
+        }
+      }
+    ]
+  },
+  "expected_output": {
+    "type": "point_mask",
+    "coordinate_space": "source_point_cloud"
+  }
+}

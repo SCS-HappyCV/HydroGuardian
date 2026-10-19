@@ -1,0 +1,48 @@
+{
+  "backbone_config": "hydro_remote_agent/configs/backbone_qwen3_vl_8b.json",
+  "output_dir": "runs/cmge_planner_v1/qwen3_vl_8b_lora_gate500d",
+  "data": {
+    "train_file": "runs/cmge_planner_v1/gate500d/train/cmge_sft.jsonl",
+    "eval_file": "runs/cmge_planner_v1/gate500d/val/cmge_sft.jsonl",
+    "target_format": "cmge",
+    "max_eval_samples": 32,
+    "max_image_pixels": 262144,
+    "max_length": 8192,
+    "image_source_root": "/workspace/HydroGuardian/benchmark/10M"
+  },
+  "runtime": {},
+  "lora": {
+    "rank": 16,
+    "alpha": 32,
+    "dropout": 0.05,
+    "target_modules": [
+      "q_proj",
+      "k_proj",
+      "v_proj",
+      "o_proj",
+      "gate_proj",
+      "up_proj",
+      "down_proj"
+    ]
+  },
+  "training": {
+    "per_device_train_batch_size": 2,
+    "per_device_eval_batch_size": 1,
+    "gradient_accumulation_steps": 1,
+    "learning_rate": 0.0002,
+    "num_train_epochs": 1.0,
+    "max_steps": 500,
+    "warmup_ratio": 0.03,
+    "lr_scheduler_type": "cosine",
+    "weight_decay": 0.01,
+    "max_grad_norm": 1.0,
+    "logging_steps": 5,
+    "eval_strategy": "steps",
+    "eval_steps": 250,
+    "save_steps": 100,
+    "save_total_limit": 3,
+    "dataloader_num_workers": 0,
+    "seed": 20260824,
+    "resume_from_checkpoint": null
+  }
+}

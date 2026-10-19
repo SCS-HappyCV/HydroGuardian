@@ -152,7 +152,7 @@ const handleSelectAll = (checked: boolean) => {
             <TableCell class="px-4 py-3 text-xs">
               <div class="flex items-center gap-1">
                 <span v-if="task.status === 'success'" class="text-[hsl(var(--success))]">
-                  {{ getTaskResult(task.id)?.highRiskCount || 0 }}
+                  {{ task.riskCount ?? getTaskResult(task.id)?.highRiskCount ?? 0 }}
                 </span>
                 <span v-else class="text-muted-foreground">-</span>
               </div>

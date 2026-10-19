@@ -1,0 +1,12 @@
+{
+  "backbone_config": "hydro_remote_agent/configs/backbone_qwen3_vl_8b.json",
+  "input": "hydro_remote_agent/data/vague_hydro_sft/test_sft.jsonl",
+  "sample_manifest": "runs/hydro_remote_agent/qwen3_vl_zero_shot/gold_sample_24.jsonl",
+  "predictions": "runs/hydro_remote_agent/qwen3_vl_zero_shot/predictions_24.jsonl",
+  "report": "runs/hydro_remote_agent/qwen3_vl_zero_shot/routing_report_24.json",
+  "sample_count": 24,
+  "seed": 20260731,
+  "batch_size": 2,
+  "max_new_tokens": 512,
+  "gpu": 0
+}

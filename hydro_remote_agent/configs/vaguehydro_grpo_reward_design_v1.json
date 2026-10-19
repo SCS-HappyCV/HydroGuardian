@@ -1,0 +1,69 @@
+{
+  "schema_version": "vaguehydro.grpo_reward_design.v1",
+  "purpose": "pre_registered_paired_reward_design_inference_profile",
+  "seed": 20261005,
+  "bootstrap_seed": 20261105,
+  "bootstrap_replicates": 10000,
+  "base_model": "/models/Qwen3-VL-8B-Instruct",
+  "sft_adapter": "runs/hydro_remote_agent/qwen3_vl_8b_lora_v1",
+  "train_source": "hydro_remote_agent/data/vague_hydro_sft_v2/train_curriculum_16360.jsonl",
+  "tool_registry": "hydro_remote_agent/configs/tool_registry.yaml",
+  "output": "runs/hydro_remote_agent/vaguehydro_grpo_reward_design_v1",
+  "sampling": {
+    "group_size": 4,
+    "temperature": 2.0,
+    "top_p": 0.98,
+    "do_sample": true,
+    "max_new_tokens": {"tool_call": 320, "workflow": 512},
+    "action_types": ["tool_call", "workflow"],
+    "difficulty_mapping": {"L0": "easy", "L1": "medium", "L2": "hard", "L3": "hard"},
+    "quota_per_action_difficulty_cell": 8,
+    "total_samples": 48
+  },
+  "reward_a": {
+    "name": "frozen_original_gold_action_reward",
+    "implementation": "hydro_remote_agent.rewards.gold_action_reward.GoldActionReward",
+    "weights": {"schema": 0.2, "action": 0.2, "tool": 0.2, "argument": 0.2, "workflow": 0.15, "stop": 0.05},
+    "components": ["schema", "action", "tool", "argument", "workflow", "stop"],
+    "modified": false
+  },
+  "reward_b": {
+    "name": "structural_contrast_reward",
+    "implementation": "hydro_remote_agent.rewards.structural_contrast_reward.StructuralContrastReward",
+    "invalid_rule": "strict invalid AgentRequest receives total=0 and all components=0",
+    "wrong_action_rule": "valid wrong action receives schema credit only; maximum total=0.10",
+    "string_rule": "canonical exact equality only; no edit distance, embedding, token overlap, or arbitrary string similarity",
+    "shared_weights": {"schema": 0.1, "action": 0.15, "intent": 0.1, "expected_output": 0.05},
+    "tool_call_route_weights": {"tool_set": 0.15, "argument_keys": 0.1, "argument_values": 0.3, "verification": 0.05},
+    "workflow_route_weights": {"tool_set": 0.08, "argument_keys": 0.07, "argument_values": 0.15, "workflow_nodes": 0.1, "workflow_edges": 0.08, "artifact_references": 0.07, "verification": 0.05},
+    "stop_route_weights": {"stop": 0.6}
+  },
+  "curriculum_c": {
+    "enabled": true,
+    "model_output_independent": true,
+    "reward_independent": true,
+    "outer_strata": ["action_type", "difficulty"],
+    "inner_balance_tool_call": ["tool_name", "action_relative_complexity_band", "argument_key_signature", "intent"],
+    "inner_priority_workflow": ["unique_tool_count", "step_count", "edge_count", "artifact_reference_count", "action_relative_complexity_band", "structural_signature"],
+    "tiebreak": "sha256(seed:id)"
+  },
+  "decoder": {"implementation": "SchemaConstrainedLogitsProcessor", "fallback_scan_top_tokens": 8192, "eos_only_after_valid_agent_request": true},
+  "preregistered_gates": {
+    "baseline_reproduction": {"tool_call_fraction_groups_std_gt_zero_max": 0.05, "workflow_fraction_groups_std_gt_zero_max": 0.05, "overall_fraction_groups_std_gt_zero_max": 0.05},
+    "reward_b_variance": {"overall_fraction_groups_std_gt_zero_min": 0.30, "tool_call_stable_fraction_min": 0.30, "workflow_stable_fraction_min": 0.30, "minimum_groups_per_action_stratum": 8},
+    "advantage_uplift": {"valid_nonzero_advantage_ratio_absolute_uplift_min": 0.15, "paired_group_bootstrap_ci_level": 0.95, "paired_group_bootstrap_lower_bound_min_exclusive": 0.0},
+    "workflow_completion": {"parse_rate_min": 0.95, "eos_rate_min": 0.95, "clipping_rate_max_exclusive": 0.05}
+  },
+  "constraints": {
+    "formal_grpo": false,
+    "optimizer": false,
+    "gradient_updates": false,
+    "adapter_updates": false,
+    "frozen_test_reads": false,
+    "verifier": false,
+    "real_experts": false,
+    "posthoc_weight_changes": false,
+    "posthoc_sample_deletion": false,
+    "posthoc_threshold_changes": false
+  }
+}

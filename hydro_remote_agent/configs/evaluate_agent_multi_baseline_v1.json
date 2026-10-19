@@ -1,0 +1,20 @@
+{
+  "schema_version": "vague_hydro.multi_baseline_protocol.v1",
+  "manifest": "runs/hydro_remote_agent/agent_eval_v1/gold_240.jsonl",
+  "manifest_sha256": "58c9c016d129c014179cd717739d48ef0e2c0017e1ad37e3374c246b13882b67",
+  "tool_registry": "hydro_remote_agent/configs/tool_registry.yaml",
+  "tool_registry_sha256": "873285e10101e91be5c9ff2659cbf4b6e754d58ca9b46685b335b5c8e87bf1e4",
+  "model_path": "/models/Qwen3-VL-8B-Instruct",
+  "model_revision": "b137ca1e6617c31efbbdb22b01e7f0acb12e6aa3",
+  "adapter_path": "runs/hydro_remote_agent/qwen3_vl_8b_lora_v1",
+  "output_dir": "runs/hydro_remote_agent/agent_multi_baseline_v1",
+  "conditions": [
+    {"id": "rule_router", "kind": "deterministic_rule"},
+    {"id": "backbone_minimal", "kind": "qwen3_vl", "prompt_profile": "minimal_toolspec"},
+    {"id": "backbone_full", "kind": "qwen3_vl", "prompt_profile": "full", "reuse": "runs/hydro_remote_agent/agent_eval_v1/baseline_predictions_240.jsonl"},
+    {"id": "backbone_react_style", "kind": "qwen3_vl_react_style", "max_planner_rounds": 2},
+    {"id": "vaguehydro_lora", "kind": "qwen3_vl_lora", "prompt_profile": "full", "reuse": "runs/hydro_remote_agent/agent_eval_v1/adapter_predictions_240.jsonl"}
+  ],
+  "generation": {"deterministic": true, "batch_size": 8, "react_batch_size": 8, "max_new_tokens": 512, "max_image_pixels": 262144},
+  "evaluation": {"bootstrap_samples": 2000, "bootstrap_seed": 20260731, "confidence": 0.95}
+}

@@ -3,8 +3,8 @@ import type { ProjectData, ProjectFilterKey } from './ProjectData'
 export interface ProjectVO extends ProjectData {}
 
 export const projectDataList: ProjectData[] = [
-  { id: 'proj-001', name: '滨海防汛项目', code: 'HG-001', region: '滨海新区', status: 'active', createdAt: '2026-02-01T00:00:00Z', updatedAt: '2026-05-01T00:00:00Z' },
-  { id: 'proj-002', name: '中心城区排涝项目', code: 'HG-002', region: '中心城区', status: 'active', createdAt: '2026-02-05T00:00:00Z', updatedAt: '2026-05-01T00:00:00Z' }
+  { id: 'proj-001', name: '滨海岸线智能巡查项目', code: 'HG-001', region: '滨海新区', status: 'active', createdAt: '2026-02-01T00:00:00Z', updatedAt: '2026-05-01T00:00:00Z' },
+  { id: 'proj-002', name: '中心河段隐患筛查项目', code: 'HG-002', region: '中心城区', status: 'active', createdAt: '2026-02-05T00:00:00Z', updatedAt: '2026-05-01T00:00:00Z' }
 ]
 
 export function getAll(): ProjectData[] {

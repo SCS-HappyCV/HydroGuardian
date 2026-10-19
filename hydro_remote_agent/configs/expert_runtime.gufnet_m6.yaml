@@ -1,0 +1,24 @@
+schema_version: "1.0"
+work_dir: "../../runs/hydro_remote_agent/expert_replacement_v1/m6_gufnet_primary/runtime"
+experts:
+  point_semantic_segmentation:
+    backend: gufnet_3d_inference
+    enabled: true
+    checkpoint_path: "../../runs/hydro_remote_agent/expert_replacement_v1/m6_gufnet_primary/formal/checkpoints/gufnet-primary-epoch=219.ckpt"
+    config_path: "train_gufnet_wcs10m_primary_m6.yaml"
+    vendor_root: "../vendor/gufnet"
+    device: "cuda:0"
+    max_chunk_points: 100000
+    min_chunk_points: 12500
+  image_change_detection:
+    backend: mock
+    enabled: false
+  language_guided_point_segmentation:
+    backend: mock
+    enabled: false
+  geometry_relation_analysis:
+    backend: mock
+    enabled: false
+  result_quality_verification:
+    backend: mock
+    enabled: false

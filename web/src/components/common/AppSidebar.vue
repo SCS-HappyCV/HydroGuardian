@@ -3,7 +3,6 @@
 import {
   Sidebar,
   SidebarContent,
-  SidebarHeader,
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
@@ -15,46 +14,65 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import SafeIcon from '@/components/common/SafeIcon.vue'
+import { usePresentationMode } from '@/lib/presentation-mode'
 
 const props = defineProps<{
   currentPath: string
 }>()
 
 const pendingWorkorders = ref(12)
+const { isCompetitionMode, initializePresentationMode } = usePresentationMode()
 
-const navigationItems = [
+const competitionNavigationItems = [
   {
-    title: '全局总览',
+    title: '智巡总览',
     icon: 'LayoutDashboard',
     href: './dashboard.html',
     id: 'dashboard'
   },
   {
-    title: '任务工作坊',
-    icon: 'Hammer',
+    title: '发起巡查',
+    icon: 'MessageSquareText',
     href: './task-studio.html',
     id: 'task-studio'
   },
   {
-    title: '风险分析区',
-    icon: 'Activity',
+    title: '智能执行',
+    icon: 'Network',
+    href: './task-execution-monitor.html',
+    id: 'task-execution-monitor'
+  },
+  {
+    title: '历史任务',
+    icon: 'ListVideo',
+    href: './task-history.html',
+    id: 'task-history'
+  },
+  {
+    title: '风险研判',
+    icon: 'ScanSearch',
     href: './risk-workspace.html',
     id: 'risk-workspace'
   },
   {
-    title: '工单中心',
-    icon: 'ClipboardList',
+    title: '处置闭环',
+    icon: 'ClipboardCheck',
     href: './workorder-center.html',
     id: 'workorder-center',
     badge: true
-  },
-  {
-    title: '历史回溯',
-    icon: 'History',
-    href: './history.html',
-    id: 'history'
   }
 ]
+
+const operationsNavigationItems = [
+  { title: '全局总览', icon: 'LayoutDashboard', href: './dashboard.html', id: 'dashboard' },
+  { title: '任务工作坊', icon: 'Hammer', href: './task-studio.html', id: 'task-studio' },
+  { title: '执行监控', icon: 'Activity', href: './task-execution-monitor.html', id: 'task-execution-monitor' },
+  { title: '历史任务', icon: 'ListVideo', href: './task-history.html', id: 'task-history' },
+  { title: '风险分析区', icon: 'Map', href: './risk-workspace.html', id: 'risk-workspace' },
+  { title: '工单中心', icon: 'ClipboardList', href: './workorder-center.html', id: 'workorder-center', badge: true },
+]
+
+const navigationItems = computed(() => isCompetitionMode.value ? competitionNavigationItems : operationsNavigationItems)
 
 const manageItems = [
   {
@@ -76,6 +94,14 @@ const isActive = (href: string) => {
   const normalizedPath = (props.currentPath || '').replace(/^\//, '').replace(/\.html$/, '')
   return normalizedPath === normalizedHref || (normalizedHref !== 'dashboard' && normalizedPath.startsWith(normalizedHref))
 }
+
+onMounted(() => {
+  initializePresentationMode()
+})
+
+const handleRefresh = () => {
+  window.location.reload()
+}
 </script>
 
 <template>
@@ -83,7 +109,7 @@ const isActive = (href: string) => {
     <SidebarContent>
       <SidebarGroup class="mt-4">
         <SidebarGroupLabel class="text-[10px] uppercase tracking-wider font-bold text-muted-foreground/60 mb-2 px-4">
-          智能引擎
+          AI 智巡链路
         </SidebarGroupLabel>
         <SidebarMenu>
           <SidebarMenuItem v-for="item in navigationItems" :key="item.id">
@@ -113,11 +139,11 @@ const isActive = (href: string) => {
         </SidebarMenu>
       </SidebarGroup>
 
-      <SidebarSeparator class="mx-4 my-4 opacity-50" />
+      <SidebarSeparator v-if="!isCompetitionMode" class="mx-4 my-4 opacity-50" />
 
-      <SidebarGroup>
+      <SidebarGroup v-if="!isCompetitionMode">
         <SidebarGroupLabel class="text-[10px] uppercase tracking-wider font-bold text-muted-foreground/60 mb-2 px-4">
-          后台支撑
+          系统管理
         </SidebarGroupLabel>
         <SidebarMenu>
           <SidebarMenuItem v-for="item in manageItems" :key="item.id">
@@ -145,10 +171,10 @@ const isActive = (href: string) => {
       <div class="surface-base p-3 flex items-center gap-3">
         <div class="w-2 h-2 rounded-full bg-[hsl(var(--success))] shadow-[0_0_8px_hsl(var(--success) / 0.5)]" />
         <div class="flex-1">
-          <p class="text-[10px] text-muted-foreground">数据同步状态</p>
-          <p class="text-[11px] font-medium">实时/已连接</p>
+          <p class="text-[10px] text-muted-foreground">{{ isCompetitionMode ? '业务协同状态' : '数据同步状态' }}</p>
+          <p class="text-[11px] font-medium">{{ isCompetitionMode ? '典型案例已就绪' : '实时/已连接' }}</p>
         </div>
-        <Button variant="ghost" size="icon" class="h-6 w-6">
+        <Button variant="ghost" size="icon" class="h-6 w-6" title="刷新当前页面" @click="handleRefresh">
           <SafeIcon name="RefreshCw" :size="12" />
         </Button>
       </div>

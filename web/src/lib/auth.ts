@@ -10,6 +10,16 @@ interface AuthSession {
 
 const AUTH_TOKEN_KEY = 'auth_token'
 const AUTH_USER_KEY = 'auth_user'
+const DEFAULT_SESSION: AuthSession = {
+  token: 'hydroguardian-local-session',
+  user: {
+    id: 'user-001',
+    name: '系统管理员',
+    email: 'admin@hydroguardian.local',
+    role: '系统管理员',
+    department: '水利智能巡查中心',
+  },
+}
 
 const authToken = ref('')
 const authUser = ref<AuthUser | null>(null)
@@ -55,8 +65,9 @@ function loadAuthState() {
     authToken.value = token
     authUser.value = user
   } else {
-    authToken.value = ''
-    authUser.value = null
+    authToken.value = DEFAULT_SESSION.token
+    authUser.value = DEFAULT_SESSION.user
+    persistSession()
   }
 
   initialized.value = true

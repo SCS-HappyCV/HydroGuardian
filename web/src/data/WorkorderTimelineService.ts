@@ -1,31 +1,35 @@
 import type { WorkorderTimelineData, WorkorderTimelineFilterKey } from './WorkorderTimelineData'
 import { getById as getUserById } from './UserService'
 
+const STORAGE_KEY = 'hydroguardian_workorder_timeline_data_competition_v1'
+
 export interface WorkorderTimelineVO extends WorkorderTimelineData {
   actorUserName?: string
 }
 
 export const workorderTimelineDataList: WorkorderTimelineData[] = [
-  { id: 'wot-3001', orderId: 'wo-2001', actorUserId: 'user-001', action: 'created', note: '基于滨海泵站风险自动创建工单。', createdAt: '2026-05-24T08:20:00Z' },
-  { id: 'wot-3002', orderId: 'wo-2001', actorUserId: 'user-002', action: 'assigned', note: '已分配给现场巡检负责人。', createdAt: '2026-05-24T08:25:00Z' },
-  { id: 'wot-3003', orderId: 'wo-2001', actorUserId: 'user-002', action: 'processing', note: '完成初步核验，正在补充附件。', createdAt: '2026-05-24T09:00:00Z' },
-  { id: 'wot-3004', orderId: 'wo-2002', actorUserId: 'user-003', action: 'created', note: '桥涵积水风险已生成工单。', createdAt: '2026-05-22T11:12:00Z' },
+  { id: 'wot-3001', orderId: 'wo-2001', actorUserId: 'user-001', action: 'created', note: '基于近水疑似沟渠风险和多模态证据自动创建工单。', createdAt: '2026-05-24T08:20:00Z' },
+  { id: 'wot-3002', orderId: 'wo-2001', actorUserId: 'user-004', action: 'assigned', note: '人工确认影像、点云和变化证据一致，同意进入处置流程。', createdAt: '2026-05-24T08:28:00Z' },
+  { id: 'wot-3003', orderId: 'wo-2001', actorUserId: 'user-002', action: 'processing', note: '工单已派发属地巡检负责人，现场完成警戒和沟渠回填处置。', createdAt: '2026-05-24T09:06:00Z' },
+  { id: 'wot-3013', orderId: 'wo-2001', actorUserId: 'user-002', action: 'review_requested', note: '已回传定位照片、处置前后影像和现场情况说明。', createdAt: '2026-05-24T10:42:00Z' },
+  { id: 'wot-3014', orderId: 'wo-2001', actorUserId: 'user-004', action: 'closed', note: '复核确认风险已消除，证据完整，工单闭环关闭。', createdAt: '2026-05-24T11:18:00Z' },
+  { id: 'wot-3004', orderId: 'wo-2002', actorUserId: 'user-003', action: 'created', note: '新增岸线扰动风险已生成工单。', createdAt: '2026-05-22T11:12:00Z' },
   { id: 'wot-3005', orderId: 'wo-2002', actorUserId: 'user-003', action: 'processing', note: '现场处置开始，等待复核材料。', createdAt: '2026-05-22T12:20:00Z' },
   { id: 'wot-3006', orderId: 'wo-2002', actorUserId: 'user-004', action: 'review_requested', note: '已申请复核。', createdAt: '2026-05-22T15:00:00Z' },
-  { id: 'wot-3007', orderId: 'wo-2003', actorUserId: 'user-001', action: 'created', note: '高新区高风险点自动生成待办工单。', createdAt: '2026-05-20T09:06:00Z' },
+  { id: 'wot-3007', orderId: 'wo-2003', actorUserId: 'user-001', action: 'created', note: '南堤连续陡坡裸地风险自动生成待办工单。', createdAt: '2026-05-20T09:06:00Z' },
   { id: 'wot-3008', orderId: 'wo-2004', actorUserId: 'user-002', action: 'assigned', note: '责任人已指派，预计当日完成。', createdAt: '2026-05-25T01:35:00Z' },
-  { id: 'wot-3009', orderId: 'wo-2004', actorUserId: 'user-002', action: 'processing', note: '清淤工作推进中。', createdAt: '2026-05-25T02:10:00Z' },
+  { id: 'wot-3009', orderId: 'wo-2004', actorUserId: 'user-002', action: 'processing', note: '坡面防护与裸地范围核查正在进行。', createdAt: '2026-05-25T02:10:00Z' },
   { id: 'wot-3010', orderId: 'wo-2005', actorUserId: 'user-004', action: 'closed', note: '复核通过后已关闭。', createdAt: '2026-05-18T15:00:00Z' },
   { id: 'wot-3011', orderId: 'wo-2006', actorUserId: 'user-002', action: 'reviewed', note: '整改结果已通过审核。', createdAt: '2026-05-23T18:00:00Z' },
   { id: 'wot-3012', orderId: 'wo-2006', actorUserId: 'user-003', action: 'closed', note: '工单已关闭。', createdAt: '2026-05-23T18:05:00Z' }
 ]
 
 export function getAll(): WorkorderTimelineData[] {
-  return workorderTimelineDataList
+  return loadPersisted() || workorderTimelineDataList
 }
 
 export function getById(id: string): WorkorderTimelineData | undefined {
-  return workorderTimelineDataList.find((item) => item.id === id)
+  return getAll().find((item) => item.id === id)
 }
 
 export function query(params: {
@@ -36,7 +40,7 @@ export function query(params: {
 }): WorkorderTimelineData[] {
   const keyword = params.keyword?.trim().toLowerCase()
   const filter = params.filter ?? {}
-  const result = workorderTimelineDataList.filter((item) => {
+  const result = getAll().filter((item) => {
     const matchKeyword = !keyword || [item.id, item.note, item.action].some((val) => val.toLowerCase().includes(keyword))
     const matchFilter = Object.entries(filter).every(([key, val]) => {
       if (val === undefined) return true
@@ -58,17 +62,23 @@ export function query(params: {
 
 export function loadPersisted(): WorkorderTimelineData[] | null {
   if (typeof localStorage === 'undefined') return null
-  const raw = localStorage.getItem('hydroguardian_workorder_timeline_data')
+  const raw = localStorage.getItem(STORAGE_KEY)
   return raw ? (JSON.parse(raw) as WorkorderTimelineData[]) : null
 }
 
 export function savePersisted(items: WorkorderTimelineData[]): void {
   if (typeof localStorage === 'undefined') return
-  localStorage.setItem('hydroguardian_workorder_timeline_data', JSON.stringify(items))
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(items))
+}
+
+export function appendEvent(event: WorkorderTimelineData): void {
+  const items = getAll()
+  items.push(event)
+  savePersisted(items)
 }
 
 export function queryByOrderId(orderId: string): WorkorderTimelineVO[] {
-  return workorderTimelineDataList
+  return getAll()
     .filter((item) => item.orderId === orderId)
     .map((item) => ({ ...item, actorUserName: getUserById(item.actorUserId)?.name }))
 }

@@ -40,31 +40,17 @@ const handleSampleChange = (value: string) => {
   emit('change')
 }
 
-const priorityLabels = {
-  low: '低优先级',
-  medium: '中优先级',
-  high: '高优先级'
-}
-
-const priorityIcons = {
-  low: 'ChevronDown',
-  medium: 'Minus',
-  high: 'ChevronUp'
-}
 </script>
 
 <template>
-  <div class="surface-base card-padding space-y-4">
-    <h3 class="text-item-title flex items-center gap-2">
-      <SafeIcon name="Settings" :size="18" class="text-accent" />
-      参数配置
-    </h3>
+  <div class="rounded-xl border border-white/[0.07] bg-black/10 p-3">
+    <h3 class="mb-3 flex items-center gap-2 text-xs font-medium text-card-foreground"><SafeIcon name="Settings" :size="14" class="text-accent" />任务设置</h3>
 
-    <div class="space-y-3">
-      <div class="space-y-2">
-        <Label class="text-label">工作区域</Label>
+    <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
+      <div class="space-y-1.5">
+        <Label class="text-[11px]">工作区域</Label>
         <Select :model-value="zoneId" @update:model-value="handleZoneChange">
-          <SelectTrigger class="bg-muted/20 border-border">
+          <SelectTrigger class="h-9 border-border bg-muted/20">
             <SelectValue placeholder="选择工作区域" />
           </SelectTrigger>
           <SelectContent>
@@ -79,10 +65,10 @@ const priorityIcons = {
         </Select>
       </div>
 
-      <div class="space-y-2">
-        <Label class="text-label">优先级</Label>
+      <div class="space-y-1.5">
+        <Label class="text-[11px]">优先级</Label>
         <Select :model-value="priority" @update:model-value="handlePriorityChange">
-          <SelectTrigger class="bg-muted/20 border-border">
+          <SelectTrigger class="h-9 border-border bg-muted/20">
             <SelectValue placeholder="选择优先级" />
           </SelectTrigger>
           <SelectContent>
@@ -108,10 +94,10 @@ const priorityIcons = {
         </Select>
       </div>
 
-      <div class="space-y-2">
-        <Label class="text-label">样本数据（可选）</Label>
+      <div class="space-y-1.5 sm:col-span-2 lg:col-span-1">
+        <Label class="text-[11px]">样本数据（可选）</Label>
         <Select :model-value="sampleId" @update:model-value="handleSampleChange">
-          <SelectTrigger class="bg-muted/20 border-border">
+          <SelectTrigger class="h-9 border-border bg-muted/20">
             <SelectValue placeholder="选择或跳过" />
           </SelectTrigger>
           <SelectContent>
@@ -128,13 +114,5 @@ const priorityIcons = {
       </div>
     </div>
 
-    <div class="pt-2 border-t border-border/50 mt-4">
-      <div class="text-[10px] text-muted-foreground space-y-1">
-        <p>💡 <strong>参数说明：</strong></p>
-        <p>• 工作区域：任务执行的地理范围</p>
-        <p>• 优先级：影响任务队列排序和资源分配</p>
-        <p>• 样本数据：可选的参考数据集</p>
-      </div>
-    </div>
   </div>
 </template>

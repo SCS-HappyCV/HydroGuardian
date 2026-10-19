@@ -1,0 +1,17 @@
+{
+  "canonical_jsonl": "hydro_remote_agent/data/vague_hydro/canonical_actions.jsonl",
+  "manifest_jsonl": "hydro_remote_agent/data/vague_hydro/source_manifest.jsonl",
+  "registry": "hydro_remote_agent/configs/tool_registry.yaml",
+  "output_dir": "hydro_remote_agent/data/vague_hydro_generated",
+  "languages": ["en", "zh"],
+  "limit_per_split": 0,
+  "batch_size": 2,
+  "workers": 64,
+  "model": "qwen3.5-flash",
+  "base_url": "https://batch.dashscope.aliyuncs.com/compatible-mode/v1",
+  "api_key_env": "DASHSCOPE_API_KEY",
+  "timeout_seconds": 3600.0,
+  "max_output_tokens": 5000,
+  "max_retries": 3,
+  "temperature": 0.7
+}

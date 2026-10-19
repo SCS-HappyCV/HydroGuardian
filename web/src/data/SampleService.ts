@@ -6,14 +6,14 @@ export interface SampleVO extends SampleData {
 }
 
 export const sampleDataList: SampleData[] = [
-  { id: 'sample-001', name: '滨海夜巡样本 A', zoneId: 'zone-01', sampleType: 'image', collectedAt: '2026-05-24T07:50:00Z', status: 'available' },
-  { id: 'sample-002', name: '西港工业样本 B', zoneId: 'zone-05', sampleType: 'sensor', collectedAt: '2026-05-23T14:00:00Z', status: 'available' },
-  { id: 'sample-003', name: '北岸排水样本 C', zoneId: 'zone-02', sampleType: 'manual', collectedAt: '2026-05-25T00:50:00Z', status: 'available' },
-  { id: 'sample-004', name: '中心城区桥涵样本 D', zoneId: 'zone-01', sampleType: 'image', collectedAt: '2026-05-22T10:40:00Z', status: 'archived' },
-  { id: 'sample-005', name: '南堤闸门样本 E', zoneId: 'zone-03', sampleType: 'sensor', collectedAt: '2026-05-24T19:20:00Z', status: 'available' },
-  { id: 'sample-006', name: '东湾雨后样本 F', zoneId: 'zone-04', sampleType: 'manual', collectedAt: '2026-05-25T06:30:00Z', status: 'available' },
-  { id: 'sample-007', name: '泵站联动样本 G', zoneId: 'zone-02', sampleType: 'sensor', collectedAt: '2026-05-21T16:00:00Z', status: 'archived' },
-  { id: 'sample-008', name: '高新区快检样本 H', zoneId: 'zone-03', sampleType: 'image', collectedAt: '2026-05-20T08:40:00Z', status: 'available' }
+  { id: 'sample-001', name: '河岸多模态场景 A', zoneId: 'zone-01', sampleType: 'image', collectedAt: '2026-05-24T07:50:00Z', status: 'available' },
+  { id: 'sample-002', name: '西港岸线正射影像 B', zoneId: 'zone-05', sampleType: 'image', collectedAt: '2026-05-23T14:00:00Z', status: 'available' },
+  { id: 'sample-003', name: '北岸点云场景 C', zoneId: 'zone-02', sampleType: 'image', collectedAt: '2026-05-25T00:50:00Z', status: 'available' },
+  { id: 'sample-004', name: '中心河段变化影像 D', zoneId: 'zone-01', sampleType: 'image', collectedAt: '2026-05-22T10:40:00Z', status: 'archived' },
+  { id: 'sample-005', name: '南堤高程场景 E', zoneId: 'zone-03', sampleType: 'image', collectedAt: '2026-05-24T19:20:00Z', status: 'available' },
+  { id: 'sample-006', name: '东湾前后时相场景 F', zoneId: 'zone-04', sampleType: 'image', collectedAt: '2026-05-25T06:30:00Z', status: 'available' },
+  { id: 'sample-007', name: '北岸岸线历史场景 G', zoneId: 'zone-02', sampleType: 'image', collectedAt: '2026-05-21T16:00:00Z', status: 'archived' },
+  { id: 'sample-008', name: '南堤裸地快检场景 H', zoneId: 'zone-03', sampleType: 'image', collectedAt: '2026-05-20T08:40:00Z', status: 'available' }
 ]
 
 export function getAll(): SampleData[] {

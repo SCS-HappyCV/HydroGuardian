@@ -524,7 +524,7 @@ const handleCopyRule = () => {
             <Textarea
               id="test-input"
               v-model="testInput"
-              placeholder="输入包含 'trigger' 的文本来模拟规则触发"
+              placeholder="输入包含 'trigger' 的文本来验证规则触发"
               class="min-h-[100px] bg-input/50 border-border focus:ring-primary font-mono text-sm"
             />
           </div>

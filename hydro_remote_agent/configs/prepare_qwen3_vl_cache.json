@@ -1,0 +1,8 @@
+{
+  "model_source": "/models/Qwen3-VL-8B-Instruct",
+  "model_target": "/tmp/vague_hydro_cache/model/Qwen3-VL-8B-Instruct",
+  "image_source": "/workspace/HydroGuardian/benchmark/10M",
+  "image_target": "/tmp/vague_hydro_cache/wcs10m",
+  "manifest": "/tmp/vague_hydro_cache/cache_manifest.json",
+  "workers": 8
+}

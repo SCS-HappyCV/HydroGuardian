@@ -1,7 +1,11 @@
+import type { SpatialLocationData } from '@/lib/spatial-location'
+
 export interface WorkorderData {
   id: string
   title: string
   riskId: string
+  taskId?: string
+  caseId?: string
   assigneeUserId?: string
   reviewerUserId?: string
   ruleId: string
@@ -11,6 +15,9 @@ export interface WorkorderData {
   createdAt: string
   updatedAt: string
   summary: string
+  aiRecommendation?: string
+  priority?: 'urgent' | 'high' | 'normal'
+  location?: SpatialLocationData
 }
 
 export type WorkorderFilterKey = keyof Pick<WorkorderData, 'status' | 'assigneeUserId' | 'reviewerUserId' | 'ruleId' | 'templateId'>

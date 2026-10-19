@@ -1,0 +1,32 @@
+schema_version: "1.0"
+work_dir: "/data/expert_outputs"
+
+experts:
+  point_semantic_segmentation:
+    backend: gufnet_3d_inference
+    enabled: true
+    checkpoint_path: "/models/gufnet/epoch=242-step=16766.ckpt"
+    config_path: "/app/hydro_remote_agent/vendor/gufnet/config/wcs2d3d_baseline_DLGC_PUAF_GATA_CMF4.yaml"
+    vendor_root: "/app/hydro_remote_agent/vendor/gufnet"
+    device: "cuda:0"
+  image_change_detection:
+    backend: rfanet_change_detection
+    enabled: true
+    checkpoint_path: "/models/change_detection/best_model.pth"
+    vendor_root: "/app/hydro_remote_agent/vendor/change_detection"
+    device: "cuda:0"
+    input_size: 256
+  language_guided_point_segmentation:
+    backend: hydro_program3d_inference
+    enabled: true
+    checkpoint_path: "/models/hydro_program3d/best.pth"
+    device: "cuda:0"
+    geometry_split: "test"
+    mask_threshold: 0.5
+    compiler_backend: rule
+  geometry_relation_analysis:
+    backend: geometry_numpy
+    enabled: true
+  result_quality_verification:
+    backend: deterministic_quality_verification
+    enabled: true

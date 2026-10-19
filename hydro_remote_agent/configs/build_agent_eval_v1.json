@@ -1,0 +1,8 @@
+{
+  "input": "hydro_remote_agent/data/vague_hydro_sft_v2/test_sft.jsonl",
+  "training": "hydro_remote_agent/data/vague_hydro_sft_v2/train_curriculum_16360.jsonl",
+  "manifest": "runs/hydro_remote_agent/agent_eval_v1/gold_240.jsonl",
+  "report": "runs/hydro_remote_agent/agent_eval_v1/manifest_report.json",
+  "count": 240,
+  "seed": 20260731
+}

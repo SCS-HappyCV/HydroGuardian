@@ -1,0 +1,47 @@
+{
+  "schema_version": "hydro_agent_bench.gate.v1",
+  "seed": 20260820,
+  "task_quality_report": "runs/hydro_remote_agent/hydro_agent_bench_gate_v1/task_aware_quality_v1/report.json",
+  "conditions": [
+    "rule_router",
+    "tool_observation_react",
+    "glm46v_flash_toolspec",
+    "deepseek_vl2_small_schema_constrained",
+    "vaguehydro_lora",
+    "oracle_gold_routing"
+  ],
+  "learned_agent_conditions": [
+    "tool_observation_react",
+    "glm46v_flash_toolspec",
+    "deepseek_vl2_small_schema_constrained",
+    "vaguehydro_lora"
+  ],
+  "reference_condition": "vaguehydro_lora",
+  "oracle_condition": "oracle_gold_routing",
+  "rule_condition": "rule_router",
+  "thresholds": {
+    "minimum_reference_routing_rate": 0.9,
+    "minimum_single_to_workflow_score_drop": 0.1,
+    "minimum_workflow_execution_to_outcome_gap": 0.3,
+    "kill_single_tool_spearman": 0.85,
+    "kill_rule_to_best_workflow_delta": 0.03,
+    "minimum_expert_replay_coverage": 0.9,
+    "minimum_expert_ranking_spearman": 0.8
+  },
+  "expert_configurations": [
+    {
+      "id": "language_uncalibrated",
+      "results": "runs/hydro_remote_agent/expert_quality_v1/language_guided_final_best_v1/results.jsonl"
+    },
+    {
+      "id": "language_calibrated",
+      "results": "runs/hydro_remote_agent/expert_quality_v1/language_guided_final_best_calibrated_v2/results.jsonl"
+    }
+  ],
+  "required_expert_configurations": 2,
+  "notes": [
+    "Spearman correlation pools non-oracle learned-agent rows with binary-mask single-tool outcomes.",
+    "A missing rule-router execution condition or second expert configuration makes the gate inconclusive, not positive.",
+    "Expert configurations must change expert outputs while preserving the evaluated request population."
+  ]
+}

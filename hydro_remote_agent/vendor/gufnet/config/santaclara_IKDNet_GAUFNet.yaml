@@ -1,0 +1,145 @@
+format_version: 1
+
+###################
+## Model options
+model_params:
+  model_architecture: "arch_acmf"
+
+  input_dims: 5 # xyz(3) + intensity(1) + return_num(1)
+  spatial_shape:
+    - 3890
+    - 3672
+    - 2318
+  scale_list:
+    - 2
+    - 4
+    - 8
+    - 16
+
+  hiden_size: 64
+  num_classes: 5 # 0=ignore, 1=others, 2=ground, 3=tree, 4=building
+  backbone_2d: FastSCNN
+  pretrained2d: False
+  use_LGC: True # 使用LGC模块（完整模型）
+  use_strip_pooling: True # 启用方向感知的条形池化 (Strip Pooling)
+
+  fusion_type: "acmf_cmf4" # 融合主模式：启用 4-scale 渐进式 Cross-Mamba 交互 + ACMF(PUAF) 最终仲裁融合
+  cmf_bits: 10 # Hilbert 序列化位宽（坐标量化精度）；越大空间排序更细但对噪声更敏感
+  cmf_d_state: 16 # Mamba/SSM 状态维度；越大长程建模能力更强、显存与计算也更高
+  cmf_d_conv: 4 # Mamba 内部局部卷积核宽度；控制局部上下文混合范围
+  cmf_expand: 2 # Mamba 通道扩展倍率；影响表达能力与计算开销
+  cmf_geo_scale_mode: "residual" # 几何条件化作用位置：'residual' 调制残差更新；'gate' 调制门控强度
+  cmf_ctx_detach: False # 渐进上下文 prev_ctx 是否在尺度间断梯度；True 可省显存，False 保持端到端反传
+  cmf_use_uncertainty_gated: True # 是否启用不确定性门控交互（可靠度抑制坏模态跨模态污染）
+  cmf_use_geo_conditioned: True # 是否启用几何条件化交互（HA 区域增强交互、LA 区域减弱）
+  cmf_geo_mode: "coord" # 几何条件来源：'coord' 用坐标 proxy；'dem' 用 DEM 梯度字段；'A' 用歧义度 A_i 字段
+  cmf_uncertainty_detach: True # 不确定性 reliability 是否断梯度；True 更稳定，False 允许与主干联合学习
+  use_zmap: True # 是否使用 z-map / 高程图像分量作为 2D 输入的一部分
+  use_gata: True # 是否启用 GATA 几何-纹理适配模块（2D 分支前处理）
+  g3d_channels: 7 # G3D 几何图通道数 (nx,ny,nz,curvature,z_norm,grad_x,grad_y)
+  gata_out_channels: 32 # GATA 输出特征通道数
+  g3d_knn_k: 20 # G3D 法向/曲率估计的 KNN 邻域大小
+  gata_mode: 'full'   # 消融：偏移由 RGB 自身预测，无几何引导
+  gata_offset_distil: True    # standard_dcn 模式下 teacher 蒸馏无意义，强制关闭
+
+  # PUAF 混合不确定性（Aleatoric + Epistemic）超参
+  puaf_enable_epistemic: True # 是否启用 epistemic（MC Dropout）不确定性；False 则退化为仅 aleatoric
+  puaf_mc_samples: 4 # MC Dropout 采样次数 T；越大估计越稳但训练时间线性增长
+  puaf_dropout_p: 0.2 # UQ head 内部 MC Dropout 概率；仅作用于不确定性分支，不影响主干
+  puaf_lambda_e: 1.0 # epistemic 权重系数 λ_e；u = u_a + λ_e · u_e
+  puaf_epistemic_in_eval: False # eval 模式下是否仍执行 MC 采样；False 保证推理确定性与速度
+
+###################
+## Dataset options
+dataset_params:
+  training_size: 8563 # set this to your train .laz tile count for an accurate LR schedule
+  dataset_type: "point_image_dataset_wcs2d3d"
+  Wandb_Project: "GAUFNet_SantaClara_IKDNet"
+  pc_dataset_type: "SantaClara"
+  collate_type: "collate_fn_default"
+  ignore_label: 0
+
+  label_mapping: "config/label_mapping/santaclara_ikdnet.yaml"
+
+  # Raw IKDNet layout:
+  # - `train|val|test/**/*.laz` under data_path
+  # - mirrored `_img.tif` tiles under image_data_path
+  image_data_path: "/data/n3c-california"
+  image_suffix: "_img.tif"
+
+  preprocessed_data:
+    enabled: false
+    path: ""
+
+  bottom_crop:
+    - 480
+    - 480
+  max_img_pts: 250000
+  color_jitter:
+    - 0.4
+    - 0.4
+    - 0.4
+  flip2d: 0.5
+  image_normalizer:
+    - [0.485, 0.456, 0.406]
+    - [0.229, 0.224, 0.225]
+
+  max_volume_space:
+    - 904
+    - 948
+    - 566
+  min_volume_space:
+    - -1041
+    - -888
+    - -593
+
+  seg_labelweights:
+    - 0
+    - 31086629
+    - 7394358538
+    - 6553775583
+    - 2635695465
+
+  train_data_loader:
+    data_path: "/data/n3c-california"
+    batch_size: 2
+    shuffle: True
+    num_workers: 4
+    rotate_aug: True
+    flip_aug: True
+    scale_aug: True
+    transform_aug: True
+    dropout_aug: True
+
+  val_data_loader:
+    data_path: "/data/n3c-california"
+    shuffle: False
+    num_workers: 4
+    batch_size: 2
+    rotate_aug: False
+    flip_aug: False
+    scale_aug: False
+    transform_aug: False
+    dropout_aug: False
+
+###################
+## Train params
+train_params:
+  max_num_epochs: 200
+  learning_rate: 0.18
+  optimizer: SGD
+  lr_scheduler: CosineAnnealingWarmRestarts
+  momentum: 0.9
+  nesterov: True
+  weight_decay: 1.0e-4
+
+  lambda_seg2d: 1
+  lambda_xm: 0.05
+  lambda_lovasz: 0.1
+
+  debug_profile:
+    enabled: false
+    interval: 1
+
+  puaf_vis:
+    enabled: false

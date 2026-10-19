@@ -1,0 +1,13 @@
+{
+  "schema_version": "1.0",
+  "request_id": "demo_direct_01",
+  "intent": "dataset_information",
+  "action": {
+    "type": "direct_answer",
+    "answer": "当前数据集使用固定的训练、验证和测试集划分。"
+  },
+  "expected_output": {
+    "type": "text",
+    "coordinate_space": "none"
+  }
+}

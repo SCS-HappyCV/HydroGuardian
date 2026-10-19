@@ -1,0 +1,1 @@
+"""GUFNet inference source snapshot."""

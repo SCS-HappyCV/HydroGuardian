@@ -1,0 +1,15 @@
+{
+  "backbone_config": "hydro_remote_agent/configs/backbone_qwen3_vl_8b.json",
+  "adapter_path": "runs/hydro_remote_agent/qwen3_vl_8b_lora_v1",
+  "input": "runs/hydro_remote_agent/qwen3_vl_zero_shot/gold_sample_24.jsonl",
+  "sample_manifest": "runs/hydro_remote_agent/qwen3_vl_lora_eval/gold_sample_24.jsonl",
+  "predictions": "runs/hydro_remote_agent/qwen3_vl_lora_eval/predictions_24.jsonl",
+  "report": "runs/hydro_remote_agent/qwen3_vl_lora_eval/routing_report_24.json",
+  "sample_count": 24,
+  "seed": 20260731,
+  "batch_size": 2,
+  "max_new_tokens": 512,
+  "image_source_root": "/workspace/HydroGuardian/benchmark/10M",
+  "image_cache_root": "/tmp/vague_hydro_cache/wcs10m",
+  "gpu": 3
+}

@@ -3,9 +3,9 @@ import type { TaskData, TaskFilterKey } from './TaskData'
 import { getById as getTemplateById } from './TaskTemplateService'
 import { getById as getZoneById } from './ZoneService'
 import { getById as getUserById } from './UserService'
-import { getById as getTaskResultById } from './TaskResultService'
+import { getByTaskIdVO as getTaskResultByTaskId } from './TaskResultService'
 
-const STORAGE_KEY = 'hydroguardian_task_data'
+const STORAGE_KEY = 'hydroguardian_task_data_competition_v1'
 
 export interface TaskVO extends TaskData {
   templateName?: string
@@ -17,8 +17,8 @@ export interface TaskVO extends TaskData {
 export const taskDataList: TaskData[] = [
   {
     id: 'task-1001',
-    name: '滨海泵站夜巡分析',
-    inputText: '请检查滨海泵站周边夜间异常水位波动并生成风险清单',
+    name: '近水扰动与疑似沟渠筛查',
+    inputText: '筛查近水扰动区域，重点识别细长沟渠并排除道路，按风险高低排序',
     templateId: 'tpl-001',
     zoneId: 'zone-01',
     sampleId: 'sample-001',
@@ -33,8 +33,8 @@ export const taskDataList: TaskData[] = [
   },
   {
     id: 'task-1002',
-    name: '北岸排水渠例行巡查',
-    inputText: '巡查北岸排水渠淤积与泵站连通情况，优先关注低洼区',
+    name: '北岸陡坡裸地排查',
+    inputText: '找出北岸高于水线的陡坡裸地区域，并按坡度和临水距离排序',
     templateId: 'tpl-002',
     zoneId: 'zone-02',
     sampleId: 'sample-003',
@@ -48,8 +48,8 @@ export const taskDataList: TaskData[] = [
   },
   {
     id: 'task-1003',
-    name: '南堤闸门应急复核',
-    inputText: '对南堤闸门的应急状态做一次快速复核，检查是否存在回流风险',
+    name: '南堤近水扰动复核',
+    inputText: '对比南堤前后时相影像，检查是否出现新增近水扰动区域',
     templateId: 'tpl-003',
     zoneId: 'zone-03',
     sampleId: 'sample-005',
@@ -64,8 +64,8 @@ export const taskDataList: TaskData[] = [
   },
   {
     id: 'task-1004',
-    name: '东湾片区雨后巡检',
-    inputText: '根据最近降雨情况检查东湾片区内涝积水点和排水能力',
+    name: '东湾岸线综合巡查',
+    inputText: '综合筛查东湾岸线附近沟渠、裸地与新增扰动，输出证据和建议',
     templateId: 'tpl-004',
     zoneId: 'zone-04',
     sampleId: 'sample-006',
@@ -78,8 +78,8 @@ export const taskDataList: TaskData[] = [
   },
   {
     id: 'task-1005',
-    name: '西港工业区复巡',
-    inputText: '复巡西港工业区雨污混接点，输出整改建议与风险分级',
+    name: '西港近水沟渠复巡',
+    inputText: '复巡西港岸线附近疑似沟渠，排除道路后输出风险分级',
     templateId: 'tpl-001',
     zoneId: 'zone-05',
     sampleId: 'sample-002',
@@ -94,8 +94,8 @@ export const taskDataList: TaskData[] = [
   },
   {
     id: 'task-1006',
-    name: '中心城区桥涵积水监测',
-    inputText: '监测中心城区桥涵下穿点的积水变化趋势并形成告警摘要',
+    name: '中心河段岸线变化检测',
+    inputText: '对比中心河段前后影像，定位岸线附近新增变化并形成证据摘要',
     templateId: 'tpl-002',
     zoneId: 'zone-01',
     sampleId: 'sample-004',
@@ -110,8 +110,8 @@ export const taskDataList: TaskData[] = [
   },
   {
     id: 'task-1007',
-    name: '沿河绿廊巡查',
-    inputText: '查看沿河绿廊边坡稳定性和排水沟通畅程度',
+    name: '沿河绿廊边坡巡查',
+    inputText: '筛查沿河绿廊高陡裸地与近水异常区域，按风险高低排序',
     templateId: 'tpl-004',
     zoneId: 'zone-06',
     sampleId: 'sample-001',
@@ -125,8 +125,8 @@ export const taskDataList: TaskData[] = [
   },
   {
     id: 'task-1008',
-    name: '泵站群联动演练',
-    inputText: '执行泵站群联动演练并记录控制节点风险',
+    name: '北岸多模态证据演练',
+    inputText: '融合北岸正射影像与点云，验证候选区域的高程和几何证据',
     templateId: 'tpl-003',
     zoneId: 'zone-02',
     sampleId: 'sample-007',
@@ -141,8 +141,8 @@ export const taskDataList: TaskData[] = [
   },
   {
     id: 'task-1009',
-    name: '高新区重点点位快检',
-    inputText: '对高新区重点点位进行快速检查，关注高风险与待复核问题',
+    name: '南堤裸地风险快检',
+    inputText: '快速筛查南堤临水陡坡裸地，关注高风险与低置信待复核区域',
     templateId: 'tpl-001',
     zoneId: 'zone-03',
     sampleId: 'sample-008',
@@ -157,8 +157,8 @@ export const taskDataList: TaskData[] = [
   },
   {
     id: 'task-1010',
-    name: '滨海新区排涝能力评估',
-    inputText: '评估滨海新区当前排涝能力并对比上次结果',
+    name: '东湾岸线变化评估',
+    inputText: '评估东湾岸线本期新增扰动并与上次巡查结果对比',
     templateId: 'tpl-002',
     zoneId: 'zone-04',
     sampleId: 'sample-003',
@@ -173,8 +173,8 @@ export const taskDataList: TaskData[] = [
   },
   {
     id: 'task-1011',
-    name: '老城区排水盲区排查',
-    inputText: '排查老城区排水盲区和疑似回流点，输出优先处置建议',
+    name: '西港疑似沟渠排查',
+    inputText: '排查西港近水细长区域，排除道路干扰并输出优先处置建议',
     templateId: 'tpl-004',
     zoneId: 'zone-05',
     sampleId: 'sample-005',
@@ -187,8 +187,8 @@ export const taskDataList: TaskData[] = [
   },
   {
     id: 'task-1012',
-    name: '河口片区防汛复盘',
-    inputText: '复盘河口片区近三次巡检结果，梳理新增与消失的风险点',
+    name: '河口片区时相复盘',
+    inputText: '复盘河口片区近三次遥感巡查结果，梳理新增与消失的扰动区域',
     templateId: 'tpl-003',
     zoneId: 'zone-06',
     sampleId: 'sample-006',
@@ -279,7 +279,7 @@ export function getByIdVO(id: string): TaskVO | undefined {
     templateName: getTemplateById(item.templateId)?.name,
     zoneName: getZoneById(item.zoneId)?.name,
     createdByUserName: getUserById(item.createdByUserId)?.name,
-    resultSummary: getTaskResultById(item.id)?.summary
+    resultSummary: getTaskResultByTaskId(item.id)?.summary
   }
 }
 

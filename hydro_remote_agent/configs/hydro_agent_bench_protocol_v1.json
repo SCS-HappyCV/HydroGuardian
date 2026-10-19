@@ -1,0 +1,152 @@
+{
+  "schema_version": "hydro_agent_bench.protocol.v1",
+  "protocol_id": "hydro_agent_bench_wcs10m_v1",
+  "frozen_at": "2026-08-20",
+  "seed": 20260820,
+  "population": {
+    "request_count": 240,
+    "gold_path": "runs/hydro_remote_agent/agent_eval_v1/gold_240.jsonl",
+    "gold_sha256": "58c9c016d129c014179cd717739d48ef0e2c0017e1ad37e3374c246b13882b67",
+    "annotation_sha256": "083058c36fd39e4b6aef51306ccba4b9b0b37f19b5f6e78285a4deb06efc8881",
+    "action_counts": {
+      "direct_answer": 80,
+      "tool_call": 80,
+      "workflow": 80
+    },
+    "languages": ["en", "zh"],
+    "ambiguity_levels": ["L0", "L1", "L2", "L3"],
+    "split": "wcs10m_primary/test",
+    "split_count": 245,
+    "split_sha256": "794a6b85326997e0665e8c02b9b4296254b9710928c597ffa592b872b6314005"
+  },
+  "claims": {
+    "primary": "Symbolic request exact match and execution completion are not calibrated substitutes for dense spatial task outcome in multimodal hydro-geospatial Agents.",
+    "supporting": "Outcome-aware evaluation can change conclusions about Agent quality, especially for composed workflows and no-target requests.",
+    "anti_claim": "The observed mismatch is not explained solely by one router or one expert checkpoint."
+  },
+  "scope": {
+    "included": [
+      "direct answers",
+      "single-tool calls",
+      "two-node segmentation-to-geometry workflows",
+      "bilingual L0-L3 requests"
+    ],
+    "excluded": [
+      "unseen workflow topology generalization",
+      "workflows deeper than two expert nodes",
+      "cross-region generalization"
+    ]
+  },
+  "data_integrity": {
+    "formal_outcome_eligible": true,
+    "status": "eligible_with_r007_ptv3_only",
+    "audit": "runs/hydro_remote_agent/expert_replacement_v1/legacy_split_leakage_audit.json",
+    "legacy_training_tile_count": 2220,
+    "test_overlap_count": 147,
+    "test_overlap_rate": 0.6,
+    "applies_to": [
+      "current GUFNet CMF4 checkpoint",
+      "baseline_2D replacement checkpoint",
+      "other checkpoints trained with the legacy folder 00/01/02 split"
+    ],
+    "consequence": "Existing GUFNet outcome results remain gate/pilot evidence only. Formal outcome tables must use the qualified R007 PTv3 checkpoint or another independently audited no-leak expert."
+  },
+  "task_rows_root": "runs/hydro_remote_agent/hydro_agent_bench_gate_v1/task_aware_quality_v1",
+  "conditions": [
+    "rule_router",
+    "tool_observation_react",
+    "glm46v_flash_toolspec",
+    "deepseek_vl2_small_schema_constrained",
+    "vaguehydro_lora",
+    "oracle_gold_routing"
+  ],
+  "learned_conditions": [
+    "tool_observation_react",
+    "glm46v_flash_toolspec",
+    "deepseek_vl2_small_schema_constrained",
+    "vaguehydro_lora"
+  ],
+  "reference_condition": "vaguehydro_lora",
+  "oracle_condition": "oracle_gold_routing",
+  "rule_condition": "rule_router",
+  "statistics": {
+    "bootstrap_samples": 10000,
+    "confidence_level": 0.95,
+    "stratify_by": "gold_action_type",
+    "low_outcome_threshold": 0.25,
+    "high_outcome_threshold": 0.5
+  },
+  "primary_outputs": [
+    "routing, execution and outcome estimates with stratified bootstrap confidence intervals",
+    "execution-to-outcome gap by action type",
+    "routing-to-outcome correlation and disagreement rates",
+    "condition ranking under symbolic, completion and outcome metrics",
+    "no-target precision, recall and F1"
+  ],
+  "independent_expert_replacement": {
+    "status": "r007_ptv3_full_quality_validated_dense_replay_pending",
+    "required": true,
+    "validity_rules": [
+      "The replacement must use an independently trained checkpoint and a materially different model or fusion family.",
+      "A different epoch, threshold, calibration setting or copy of the same checkpoint is not an independent replacement.",
+      "The request population, router outputs and task scorer must remain frozen.",
+      "Agent ranking stability is reported with Spearman correlation; replacement quality itself is reported separately."
+    ],
+    "candidates": [
+      {
+        "id": "r007_ptv3_pointonly_fp32_resume",
+        "eligible_for_primary_test": true,
+        "model_family": "PointTransformerV3 / Pointcept",
+        "config": "/opt/pointcept/exp/wcs10m/R007_ptv3_pointonly_fp32_resume/config.py",
+        "checkpoint": "/opt/pointcept/exp/wcs10m/R007_ptv3_pointonly_fp32_resume/model/model_best.pth",
+        "checkpoint_sha256": "dd7f3865a324188dd715e055daf75abca79fd6f232b73f019155db57f398ee96",
+        "checkpoint_bytes": 554606760,
+        "training_split": "wcs10m_primary/train",
+        "training_count": 1145,
+        "validation_count": 246,
+        "test_count": 245,
+        "precise_test_miou": 0.4365,
+        "precise_test_macc": 0.5778,
+        "precise_test_allacc": 0.6675,
+        "adapter_backend": "pointcept_ptv3_inference",
+        "adapter_validation": {
+          "status": "passed",
+          "sample_count": 2,
+          "point_count": 218987,
+          "label_mismatches": 0,
+          "max_probability_error": 0.000244140625,
+          "probability_reference_dtype": "float16",
+          "report": "runs/hydro_remote_agent/expert_replacement_v1/r007_ptv3_smoke_20260820/consistency_report.json"
+        },
+        "full_test_validation": {
+          "status": "passed",
+          "sample_count": 245,
+          "failed_count": 0,
+          "point_count": 40629896,
+          "mean_iou": 0.43690453239399446,
+          "mean_accuracy": 0.5782432331937047,
+          "overall_accuracy": 0.6674625010115703,
+          "report": "runs/hydro_remote_agent/expert_replacement_v1/r007_ptv3_full_test_20260820/report.json"
+        },
+        "next_action": "Replay the 160 frozen dense Agent requests with the validated PTv3 expert."
+      },
+      {
+        "id": "wcs2d3d_baseline_2d",
+        "eligible_for_primary_test": false,
+        "config": "/opt/acmf-lgc-zmap/config/wcs2d3d_baseline_2D.yaml",
+        "checkpoint": "/opt/acmf-lgc-zmap/logs/WCS2D3D/baseline_2D/version_7/checkpoints/last.ckpt",
+        "difference": "concat fusion without LGC or Z-map",
+        "compatibility_smoke": "2/2 succeeded; mean IoU 0.4114; not a formal quality estimate",
+        "ineligibility_reason": "Legacy training set overlaps 147/245 primary test tiles."
+      },
+      {
+        "id": "wcs2d3d_baseline_acmf",
+        "eligible_for_primary_test": false,
+        "config": "/opt/acmf-lgc-zmap/config/wcs2d3d_baseline_ACMF.yaml",
+        "checkpoint": "/opt/acmf-lgc-zmap/logs/WCS2D3D/baseline_ACMF/version_2/checkpoints/last.ckpt",
+        "difference": "ACMF fusion without LGC or Z-map",
+        "ineligibility_reason": "Uses the same legacy folder-based training protocol with primary-test overlap risk."
+      }
+    ]
+  }
+}

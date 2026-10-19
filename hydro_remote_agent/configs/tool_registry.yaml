@@ -1,0 +1,321 @@
+schema_version: "1.0"
+
+tools:
+  - name: point_semantic_segmentation
+    version: "1.0"
+    description: Segment a hydrological scene into 15 semantic classes using only the point cloud.
+    capabilities:
+      - full_scene_semantic_segmentation
+      - class_point_mask
+      - class_presence_from_points
+    inputs:
+      required_modalities: [point_cloud]
+      optional_modalities: []
+    arguments_schema:
+      type: object
+      additionalProperties: false
+      properties:
+        point_cloud_path:
+          type: string
+          description: Path to the source point cloud in XYZRGB-label-compatible tile format.
+        target_class_ids:
+          type: array
+          description: Optional raw class IDs to return as individual masks; omit for all classes.
+          items:
+            type: integer
+            minimum: 1
+            maximum: 15
+          uniqueItems: true
+        return_probabilities:
+          type: boolean
+          default: true
+      required: [point_cloud_path]
+    output:
+      result_types: [point_labels, point_mask]
+      coordinate_space: source_point_cloud
+      artifacts: [point_labels, class_masks, class_probabilities, class_summary]
+      includes_confidence: true
+    resources:
+      device: cuda
+      min_gpu_memory_gb: 12
+      timeout_seconds: 120
+      supports_batching: true
+    deterministic: false
+    verifier: result_quality_verification
+    error_codes: [missing_point_cloud, unsupported_point_format, inference_failed, out_of_memory]
+
+  - name: multimodal_semantic_segmentation
+    version: "1.0"
+    description: Segment a hydrological scene with the multimodal GUFNet interface using registered image and point-cloud inputs.
+    capabilities:
+      - full_scene_semantic_segmentation
+      - class_point_mask
+      - relation_workflow_segmentation
+    inputs:
+      required_modalities: [image, point_cloud]
+      optional_modalities: []
+    arguments_schema:
+      type: object
+      additionalProperties: false
+      properties:
+        image_path:
+          type: string
+          description: Path to the registered orthophoto used by the multimodal interface.
+        point_cloud_path:
+          type: string
+          description: Path to the source point cloud in XYZRGB-label-compatible tile format.
+        target_class_ids:
+          type: array
+          description: Optional raw class IDs to return as individual masks; omit for all classes.
+          items:
+            type: integer
+            minimum: 1
+            maximum: 15
+          uniqueItems: true
+        return_probabilities:
+          type: boolean
+          default: true
+      required: [image_path, point_cloud_path]
+    output:
+      result_types: [point_labels, point_mask]
+      coordinate_space: source_point_cloud
+      artifacts: [point_labels, class_masks, class_probabilities, class_summary, projection_metadata]
+      includes_confidence: true
+    resources:
+      device: cuda
+      min_gpu_memory_gb: 12
+      timeout_seconds: 120
+      supports_batching: true
+    deterministic: false
+    verifier: result_quality_verification
+    error_codes: [missing_image, missing_point_cloud, unsupported_point_format, inference_failed, out_of_memory]
+
+  - name: image_change_detection
+    version: "1.0"
+    description: Detect changed regions between registered before and after orthophotos.
+    capabilities:
+      - binary_change_detection
+      - changed_region_mask
+      - change_area_statistics
+    inputs:
+      required_modalities: [before_image, image]
+      optional_modalities: []
+    arguments_schema:
+      type: object
+      additionalProperties: false
+      properties:
+        before_image_path:
+          type: string
+          description: Path to the earlier registered image.
+        after_image_path:
+          type: string
+          description: Path to the later registered image.
+        change_threshold:
+          type: number
+          description: Probability threshold used to produce the binary change mask.
+          minimum: 0.0
+          maximum: 1.0
+          default: 0.0005
+        minimum_region_pixels:
+          type: integer
+          description: Connected components smaller than this value are removed.
+          minimum: 0
+          default: 0
+        return_probability_map:
+          type: boolean
+          default: true
+      required: [before_image_path, after_image_path]
+    output:
+      result_types: [change_mask]
+      coordinate_space: after_image_pixels
+      artifacts: [change_mask, change_probability_map, change_regions]
+      includes_confidence: true
+    resources:
+      device: cuda
+      min_gpu_memory_gb: 8
+      timeout_seconds: 120
+      supports_batching: true
+    deterministic: false
+    verifier: result_quality_verification
+    error_codes: [missing_before_image, missing_after_image, registration_error, inference_failed, out_of_memory]
+
+  - name: language_guided_point_segmentation
+    version: "1.0"
+    description: Produce a point-level target mask from an orthophoto, a registered point cloud, and a natural-language query.
+    capabilities:
+      - class_referring_segmentation
+      - attribute_referring_segmentation
+      - relation_referring_segmentation
+      - no_target_abstention
+    inputs:
+      required_modalities: [image, point_cloud, query_text]
+      optional_modalities: []
+    arguments_schema:
+      type: object
+      additionalProperties: false
+      properties:
+        image_path:
+          type: string
+          description: Path to the orthophoto registered to the point cloud.
+        point_cloud_path:
+          type: string
+          description: Path to the source point-cloud tile.
+        query:
+          type: string
+          description: Natural-language expression describing the requested target region.
+          minLength: 1
+        target_class_ids:
+          type: array
+          description: Optional canonical target IDs extracted by the agent.
+          items:
+            type: integer
+            minimum: 1
+            maximum: 15
+          uniqueItems: true
+        relation:
+          type: string
+          enum: [near, above]
+          description: Optional canonical spatial relation extracted by the agent.
+        reference_class_ids:
+          type: array
+          description: Optional reference class IDs for a relation query.
+          items:
+            type: integer
+            minimum: 1
+            maximum: 15
+          uniqueItems: true
+        return_probabilities:
+          type: boolean
+          default: true
+      required: [image_path, point_cloud_path, query]
+    output:
+      result_types: [point_mask]
+      coordinate_space: source_point_cloud
+      artifacts: [target_mask, target_probabilities, sampling_metadata, compiled_program, point_visualization]
+      includes_confidence: true
+    resources:
+      device: cuda
+      min_gpu_memory_gb: 16
+      timeout_seconds: 180
+      supports_batching: true
+    deterministic: false
+    verifier: result_quality_verification
+    error_codes: [missing_image, missing_point_cloud, empty_query, inference_failed, no_target, out_of_memory]
+
+  - name: geometry_relation_analysis
+    version: "1.0"
+    description: Execute deterministic geometric measurements and near or above relations over point-level masks.
+    capabilities:
+      - near_relation_mask
+      - above_relation_mask
+      - distance_measurement
+      - elevation_measurement
+      - point_region_statistics
+    inputs:
+      required_modalities: [point_cloud, segmentation_prediction]
+      optional_modalities: []
+    arguments_schema:
+      type: object
+      additionalProperties: false
+      properties:
+        point_cloud_path:
+          type: string
+          description: Path to the source point cloud used by the segmentation prediction.
+        segmentation_result_path:
+          type: string
+          description: Path to point labels or class probabilities produced by a segmentation expert.
+        operation:
+          type: string
+          enum: [near, above, class_statistics, pair_distance, elevation_difference]
+        target_class_id:
+          type: integer
+          minimum: 1
+          maximum: 15
+        reference_class_id:
+          type: integer
+          minimum: 1
+          maximum: 15
+        distance_threshold_m:
+          type: number
+          exclusiveMinimum: 0.0
+          default: 3.0
+        z_margin_m:
+          type: number
+          minimum: 0.0
+          default: 0.2
+      required: [point_cloud_path, segmentation_result_path, operation, target_class_id]
+    output:
+      result_types: [point_mask, geometry_report]
+      coordinate_space: source_point_cloud
+      artifacts: [relation_mask, geometry_report]
+      includes_confidence: false
+    resources:
+      device: either
+      min_gpu_memory_gb: 0
+      timeout_seconds: 30
+      supports_batching: true
+    deterministic: true
+    verifier: result_quality_verification
+    error_codes: [missing_point_cloud, missing_segmentation_result, empty_target, empty_reference, unsupported_operation]
+
+  - name: result_quality_verification
+    version: "1.0"
+    description: Verify segmentation or change-detection outputs using confidence, geometry, consistency, and empty-result checks.
+    capabilities:
+      - segmentation_quality_verification
+      - change_quality_verification
+      - abstention_recommendation
+    inputs:
+      required_modalities: [reference_result]
+      optional_modalities: [image, point_cloud, segmentation_prediction, change_prediction]
+    arguments_schema:
+      type: object
+      additionalProperties: false
+      properties:
+        result_path:
+          type: string
+          description: Path to the expert result manifest to verify.
+        source_tool:
+          type: string
+          enum:
+            - point_semantic_segmentation
+            - multimodal_semantic_segmentation
+            - image_change_detection
+            - language_guided_point_segmentation
+            - geometry_relation_analysis
+        result_artifacts:
+          type: object
+          additionalProperties:
+            type: string
+          description: Materialized source artifact paths for cross-worker verification.
+        image_path:
+          type: string
+        point_cloud_path:
+          type: string
+        comparison_result_path:
+          type: string
+          description: Optional output from another expert for consistency checking.
+        minimum_confidence:
+          type: number
+          minimum: 0.0
+          maximum: 1.0
+          default: 0.6
+        maximum_empty_ratio:
+          type: number
+          minimum: 0.0
+          maximum: 1.0
+          default: 0.999
+      required: [result_path, source_tool]
+    output:
+      result_types: [quality_report]
+      coordinate_space: none
+      artifacts: [quality_report, diagnostic_overlay]
+      includes_confidence: true
+    resources:
+      device: either
+      min_gpu_memory_gb: 0
+      timeout_seconds: 60
+      supports_batching: true
+    deterministic: true
+    verifier: null
+    error_codes: [missing_result, unsupported_result_type, verification_failed]

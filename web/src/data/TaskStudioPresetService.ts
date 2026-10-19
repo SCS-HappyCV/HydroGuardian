@@ -6,9 +6,9 @@ export interface TaskStudioPresetVO extends TaskStudioPresetData {}
 export const taskStudioPresetDataList: TaskStudioPresetData[] = [
   {
     id: 'preset-001',
-    name: '滨海泵站夜巡',
-    description: '适用于滨海区域夜间巡检与风险预览。',
-    defaultInputText: '请检查滨海泵站周边夜间异常水位波动并生成风险清单',
+    name: '近水沟渠智能筛查',
+    description: '识别近水细长沟渠，结合空间关系排除道路干扰。',
+    defaultInputText: '找出靠近水线的细长沟渠，并排除道路，按风险高低排序',
     defaultPriority: 'high',
     defaultZoneId: 'zone-01',
     defaultSampleId: 'sample-001',
@@ -17,9 +17,9 @@ export const taskStudioPresetDataList: TaskStudioPresetData[] = [
   },
   {
     id: 'preset-002',
-    name: '北岸排水渠复核',
-    description: '用于排水渠淤积和低洼积水复核。',
-    defaultInputText: '巡查北岸排水渠淤积与泵站连通情况，优先关注低洼区',
+    name: '陡坡裸地风险排查',
+    description: '结合点云高程与坡度证据筛查临水陡坡裸地。',
+    defaultInputText: '找出高于水线的陡坡裸地区域，并按坡度和临水距离排序',
     defaultPriority: 'medium',
     defaultZoneId: 'zone-02',
     defaultSampleId: 'sample-003',
@@ -28,9 +28,9 @@ export const taskStudioPresetDataList: TaskStudioPresetData[] = [
   },
   {
     id: 'preset-003',
-    name: '南堤闸门核验',
-    description: '用于闸门应急状态快速核验。',
-    defaultInputText: '对南堤闸门的应急状态做一次快速复核，检查是否存在回流风险',
+    name: '近水扰动变化检测',
+    description: '对比前后时相影像，定位岸线附近新增扰动区域。',
+    defaultInputText: '筛查近水扰动区域，结合前后影像变化按风险高低排序',
     defaultPriority: 'high',
     defaultZoneId: 'zone-03',
     defaultSampleId: 'sample-005',
@@ -39,9 +39,9 @@ export const taskStudioPresetDataList: TaskStudioPresetData[] = [
   },
   {
     id: 'preset-004',
-    name: '东湾雨后巡检',
-    description: '用于降雨后排涝与积水检查。',
-    defaultInputText: '根据最近降雨情况检查东湾片区内涝积水点和排水能力',
+    name: '岸线多模态综合巡查',
+    description: '综合使用正射影像、点云和变化检测完成岸线隐患巡查。',
+    defaultInputText: '综合筛查岸线附近沟渠、陡坡裸地与新增扰动，输出证据和处置建议',
     defaultPriority: 'low',
     defaultZoneId: 'zone-04',
     defaultSampleId: 'sample-006',
@@ -109,4 +109,3 @@ export function queryVO(params: {
 }): TaskStudioPresetVO[] {
   return query(params)
 }
-      

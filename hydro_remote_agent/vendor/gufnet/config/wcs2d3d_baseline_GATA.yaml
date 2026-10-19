@@ -1,0 +1,130 @@
+# Config format schema number
+format_version: 1
+
+###################
+## Model options
+model_params:
+  model_architecture: "arch_acmf"  # 可选: "swin3d_2dpass_adapter" 使用Swin3D作为3D分支
+
+  input_dims: 6  # xyz + rgb (label被分离出来，不包含在输入特征中)
+  spatial_shape:
+    - 23088
+    - 73472
+    - 880
+  scale_list:
+    - 2
+    - 4
+    - 8
+    - 16
+
+  hiden_size: 64
+  num_classes: 16  # 16维输出：index 0 不用，1~15 对应 15 个类别
+  backbone_2d: FastSCNN
+  #backbone_2d: resnet34
+  pretrained2d: False
+  use_LGC: False   # 使用LGC模块（完整模型）
+  use_strip_pooling: False  # 启用方向感知的条形池化 (Strip Pooling)
+
+  fusion_type: 'none' # 消融实验：简单Concat融合
+  use_zmap: True
+  use_gata: True
+
+#  fusion_type: 'acmf'    # 完整模型
+  # fusion_type: 'add'    # 消融实验：直接相加融合
+
+###################
+## Dataset options
+dataset_params:
+  training_size: 2220  # 根据你的训练集大小修改
+  dataset_type: "point_image_dataset_wcs2d3d"  # 你的自定义Dataset类名
+  pc_dataset_type: "WCS2D3D"  # 你的点云数据集类名
+  collate_type: "collate_fn_default"
+  Wandb_Project: "GAUFNet_WCS2D3D"
+  ignore_label: 0  # index 0 不使用，作为占位符
+  label_mapping: "config/label_mapping/wcs2d3d.yaml"  # 标签映射文件
+
+  # 2D augmentation (如果不用图像可以注释掉)
+  bottom_crop:
+    - 960
+    - 960
+
+  color_jitter:
+    - 0.4
+    - 0.4
+    - 0.4
+  flip2d: 0.5
+  image_normalizer:
+    - [0.485, 0.456, 0.406]
+    - [0.229, 0.224, 0.225]
+
+  # 局部相对坐标范围（已在加载时减去中心点）
+  # 基于实测统计：x∈[-113, 92], y∈[-115, 153], z∈[-69, 111]
+  # 留 10% 余量，体素分辨率约 0.25×0.32×1.09 米
+  max_volume_space:
+    - 1116
+    - 13082
+    - 129
+  min_volume_space:
+    - -4654
+    - -5286
+    - -88
+
+  # 根据15个类别修改权重（标签1~15，权重索引也是1~15）
+  # index 0 的权重设为 1（不参与训练，但需要占位避免维度不匹配）
+  seg_labelweights:
+    - 0
+    - 6641631   # index 1: Shed
+    - 4691059    # index 2: Concretehouse
+    - 8006269   # index 3: Cementroad
+    - 1121052    # index 4: Dirtroad
+    - 2982184    # index 5: Slope
+    - 753654    # index 6: Scarp
+    - 2685192    # index 7: Dam
+    - 22043635   # index 8: Vegetablefield
+    - 24535686   # index 9: Grassland
+    - 2335021    # index 10: Dryland
+    - 28164770   # index 11: Woodland
+    - 14242784   # index 12: Bareland
+    - 24088868   # index 13: Waterline
+    - 4021854    # index 14: Ditch
+    - 6118908   # index 15: Others
+
+  train_data_loader:
+    data_path: "/data/wcs2d3d/sequences/"  # 你的训练数据路径
+    batch_size: 16  # 降低batch_size以减少内存使用，提高训练稳定性
+    shuffle: True
+    num_workers: 8  # 减少worker数量以降低内存压力
+    rotate_aug: True
+    flip_aug: True
+    scale_aug: True
+    transform_aug: True
+    dropout_aug: True
+
+  val_data_loader:
+    data_path: "/data/wcs2d3d/sequences/"  # 你的验证数据路径
+    shuffle: False
+    num_workers: 8  # 减少worker数量
+
+    # normal test
+    batch_size: 16
+    rotate_aug: False
+    flip_aug: False
+    scale_aug: False
+    transform_aug: False
+    dropout_aug: False
+
+
+###################
+## Train params
+train_params:
+  max_num_epochs: 250
+  learning_rate: 0.18
+  optimizer: SGD  # [SGD, Adam]
+  lr_scheduler: CosineAnnealingWarmRestarts  # [StepLR, ReduceLROnPlateau, CosineAnnealingLR, CosineAnnealingWarmRestarts]
+  momentum: 0.9
+  nesterov: True
+  weight_decay: 1.0e-4
+
+  lambda_seg2d: 1
+  lambda_xm: 0.05
+  lambda_lovasz: 0.1

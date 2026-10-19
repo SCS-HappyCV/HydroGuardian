@@ -1,0 +1,18 @@
+schema_version: "1.0"
+work_dir: "../runs/expert_runtime_smoke"
+experts:
+  point_semantic_segmentation:
+    backend: mock
+    enabled: true
+  image_change_detection:
+    backend: mock
+    enabled: true
+  language_guided_point_segmentation:
+    backend: mock
+    enabled: true
+  geometry_relation_analysis:
+    backend: mock
+    enabled: true
+  result_quality_verification:
+    backend: mock
+    enabled: true

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="hydroguardian_navy">#06101D</color>
+    <color name="hydroguardian_blue">#167EA3</color>
+    <color name="hydroguardian_cyan">#63E3E8</color>
+    <color name="colorPrimary">#2F80ED</color>
+    <color name="colorPrimaryDark">#06101D</color>
+    <color name="colorAccent">#2DD4BF</color>
+</resources>

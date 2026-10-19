@@ -1,0 +1,29 @@
+schema_version: "1.0"
+work_dir: "../runs/expert_runtime_hydro_agent_bench_downstream"
+experts:
+  point_semantic_segmentation:
+    backend: mock
+    enabled: false
+  image_change_detection:
+    backend: mock
+    enabled: false
+  language_guided_point_segmentation:
+    backend: hydro_program3d_inference
+    enabled: true
+    checkpoint_path: "../../runs/hydro_program3d/formal_wcs10m_primary_spvcnn_clip_program_v1/best.pth"
+    device: "cuda:0"
+    geometry_split: "test"
+    mask_threshold: 0.5
+    mask_thresholds:
+      class: 0.30
+      attribute: 0.03
+      relation: 0.05
+    no_target_posterior_threshold: 0.06605950832366944
+    no_target_probability_max_threshold: 0.2539614737033844
+    compiler_backend: rule
+  geometry_relation_analysis:
+    backend: geometry_numpy
+    enabled: true
+  result_quality_verification:
+    backend: deterministic_quality_verification
+    enabled: true

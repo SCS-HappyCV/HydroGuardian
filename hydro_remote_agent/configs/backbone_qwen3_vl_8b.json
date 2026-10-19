@@ -1,0 +1,10 @@
+{
+  "model_id": "Qwen/Qwen3-VL-8B-Instruct",
+  "revision": "0c351dd01ed87e9c1b53cbc748cba10e6187ff3b",
+  "local_path": "/models/Qwen3-VL-8B-Instruct",
+  "download_endpoint": "https://hf-mirror.com",
+  "architecture": "Qwen3VLForConditionalGeneration",
+  "dtype": "bfloat16",
+  "max_image_pixels": 1048576,
+  "trust_remote_code": false
+}

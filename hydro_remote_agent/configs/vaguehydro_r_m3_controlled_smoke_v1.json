@@ -1,0 +1,63 @@
+{
+  "schema_version": "vaguehydro_r.m3_controlled_smoke_config.v1",
+  "seed": 20261002,
+  "parent_audit": "runs/hydro_remote_agent/vaguehydro_r_m2_smoke_v3/EXPERIMENT_AUDIT.json",
+  "base_model": "/models/Qwen3-VL-8B-Instruct",
+  "sft_adapter": "runs/hydro_remote_agent/qwen3_vl_8b_lora_v1",
+  "tool_registry": "hydro_remote_agent/configs/tool_registry.yaml",
+  "m1_manifest": "runs/hydro_remote_agent/vaguehydro_r_m1_v1/rl_data_manifest.json",
+  "m1_preservation_files": [
+    "runs/hydro_remote_agent/vaguehydro_r_m1_v1/M1_REPORT.md",
+    "runs/hydro_remote_agent/vaguehydro_r_m1_v1/EXPERIMENT_AUDIT.md",
+    "runs/hydro_remote_agent/vaguehydro_r_m1_v1/rl_data_manifest.json",
+    "runs/hydro_remote_agent/vaguehydro_r_m1_v1/rollout_smoke_summary.json"
+  ],
+  "train": "hydro_remote_agent/data/vague_hydro_sft_v2/train_curriculum_16360.jsonl",
+  "valid": "hydro_remote_agent/data/vague_hydro_sft_v2/val_sft.jsonl",
+  "frozen_test": "runs/hydro_remote_agent/agent_eval_v1/gold_240.jsonl",
+  "output_dir": "runs/hydro_remote_agent/vaguehydro_r_m3_controlled_smoke_v1",
+  "environment_pins": {
+    "trl": "0.24.0",
+    "datasets": "4.1.1"
+  },
+  "data": {
+    "split": "train",
+    "unique_prompt_samples": 1,
+    "max_image_pixels": 131072
+  },
+  "grpo": {
+    "max_steps": 1,
+    "per_device_train_batch_size": 2,
+    "gradient_accumulation_steps": 1,
+    "num_generations": 2,
+    "max_prompt_length": 4096,
+    "max_completion_length": 256,
+    "temperature": 1.2,
+    "top_p": 0.95,
+    "learning_rate": 0.000001,
+    "beta": 0.0,
+    "epsilon": 0.2,
+    "loss_type": "dapo",
+    "scale_rewards": "group",
+    "gradient_checkpointing": false,
+    "optimizer": "adamw_torch",
+    "generation_mode": "native_policy_sampling"
+  },
+  "reward_weights": {
+    "schema": 0.2,
+    "action": 0.2,
+    "tool": 0.2,
+    "argument": 0.2,
+    "workflow": 0.15,
+    "stop": 0.05
+  },
+  "constraints": {
+    "call_real_experts": false,
+    "call_verifier": false,
+    "exclude_frozen_test_ids": true,
+    "allow_long_training": false,
+    "single_gpu": true,
+    "policy_samples": true,
+    "forced_completions": false
+  }
+}

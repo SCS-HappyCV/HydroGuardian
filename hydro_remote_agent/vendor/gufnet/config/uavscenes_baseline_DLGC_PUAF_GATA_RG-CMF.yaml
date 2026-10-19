@@ -1,0 +1,135 @@
+# Config for UAVScenes Dataset with GAUFNet
+format_version: 1
+
+###################
+## Model options
+model_params:
+  model_architecture: "arch_acmf"
+
+  input_dims: 3  # xyz + rgb (从图像采样颜色)
+  spatial_shape:
+    - 4064
+    - 5034
+    - 5029
+  scale_list:
+    - 2
+    - 4
+    - 8
+    - 16
+
+  hiden_size: 64
+  num_classes: 19  # UAVScenes: 18个有效类别 (映射后 1-18) + ignore_label (0)
+  #backbone_2d: resnet34
+  backbone_2d: FastSCNN
+  pretrained2d: False
+  use_LGC: True
+  use_strip_pooling: True
+
+  fusion_type: "acmf_cmf4" # 融合主模式：启用 4-scale 渐进式 Cross-Mamba 交互 + ACMF(PUAF) 最终仲裁融合
+  cmf_bits: 10 # Hilbert 序列化位宽（坐标量化精度）；越大空间排序更细但对噪声更敏感
+  cmf_d_state: 16 # Mamba/SSM 状态维度；越大长程建模能力更强、显存与计算也更高
+  cmf_d_conv: 4 # Mamba 内部局部卷积核宽度；控制局部上下文混合范围
+  cmf_expand: 2 # Mamba 通道扩展倍率；影响表达能力与计算开销
+  cmf_geo_scale_mode: "residual" # 几何条件化作用位置：'residual' 调制残差更新；'gate' 调制门控强度
+  cmf_ctx_detach: False # 渐进上下文 prev_ctx 是否在尺度间断梯度；True 可省显存，False 保持端到端反传
+  cmf_use_uncertainty_gated: True # 是否启用不确定性门控交互（可靠度抑制坏模态跨模态污染）
+  cmf_use_geo_conditioned: True # 是否启用几何条件化交互（HA 区域增强交互、LA 区域减弱）
+  cmf_geo_mode: "coord" # 几何条件来源：'coord' 用坐标 proxy；'dem' 用 DEM 梯度字段；'A' 用歧义度 A_i 字段
+  cmf_uncertainty_detach: True # 不确定性 reliability 是否断梯度；True 更稳定，False 允许与主干联合学习
+  use_zmap: True # 是否使用 z-map / 高程图像分量作为 2D 输入的一部分
+  use_gata: True # 是否启用 GATA 几何-纹理适配模块（2D 分支前处理）
+
+###################
+## Dataset options
+dataset_params:
+  training_size: 24126  # 根据实际数据量调整
+  dataset_type: "point_image_dataset_uavscenes"
+  pc_dataset_type: "UAVScenes"
+  Wandb_Project: "GAUFNet_UAVScenes"
+  collate_type: "collate_fn_default"
+  ignore_label: 0
+  label_mapping: "config/label_mapping/uavscenes.yaml"
+
+  # 2D augmentation - UAVScenes optimal settings (95% coverage)
+  # 原始图像尺寸: 2448 x 2048
+  bottom_crop:
+    - 960
+    - 960
+
+  color_jitter:
+    - 0.4
+    - 0.4
+    - 0.4
+  flip2d: 0.5
+  image_normalizer:
+    - [0.485, 0.456, 0.406]
+    - [0.229, 0.224, 0.225]
+
+  # 根据 UAVScenes 点云范围调整 (需要实际测量)
+  max_volume_space:
+    - 204.9
+    - 131.6
+    - 130.8
+  min_volume_space:
+    - -7.9
+    - -132.1
+    - -132.6
+
+  # 19个类别的权重 (0: ignore, 1-18: 有效类别)
+  seg_labelweights:
+  - 0          # 0: ignore (权重为0，不参与计算)
+  - 14218863   # 1: roof
+  - 9312253    # 2: dirt_motor_road
+  - 6573599    # 3: paved_motor_road
+  - 6771821    # 4: river
+  - 11925      # 5: pool
+  - 56427      # 6: bridge
+  - 1537139    # 7: container
+  - 21447393   # 8: airstrip
+  - 1535663    # 9: traffic_barrier
+  - 237692751  # 10: green_field
+  - 142056993  # 11: wild_field
+  - 31932      # 12: solar_board
+  - 47789      # 13: umbrella
+  - 325720     # 14: transparent_roof
+  - 839906     # 15: car_park
+  - 3465631    # 16: paved_walk
+  - 432508     # 17: sedan
+  - 96900      # 18: truck
+
+  train_data_loader:
+    data_path: "/data/uav-scenes"
+    batch_size: 16
+    shuffle: True
+    num_workers: 4
+    rotate_aug: True
+    flip_aug: True
+    scale_aug: True
+    transform_aug: True
+    dropout_aug: True
+
+  val_data_loader:
+    data_path: "/data/uav-scenes"
+    shuffle: False
+    num_workers: 4
+    batch_size: 16
+    rotate_aug: False
+    flip_aug: False
+    scale_aug: False
+    transform_aug: False
+    dropout_aug: False
+
+###################
+## Train params
+train_params:
+  max_num_epochs: 120
+  learning_rate: 0.24
+  optimizer: SGD
+  lr_scheduler: CosineAnnealingWarmRestarts
+  momentum: 0.9
+  nesterov: True
+  weight_decay: 1.0e-4
+
+  lambda_seg2d: 1
+  lambda_xm: 0.05
+  lambda_lovasz: 0.1

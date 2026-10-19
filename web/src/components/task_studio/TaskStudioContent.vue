@@ -23,12 +23,21 @@ import {
   type DataMode,
 } from '@/lib/runtime-mode'
 import PageHeader from '@/components/common/PageHeader.vue'
+import RealSpatialMap, { type SpatialMapBounds, type SpatialMapMarker } from '@/components/common/RealSpatialMap.vue'
 import TaskInputSection from './TaskInputSection.vue'
-import TaskTemplateList from './TaskTemplateList.vue'
 import TaskParameterPanel from './TaskParameterPanel.vue'
 import SceneAssetPanel from './SceneAssetPanel.vue'
 import { Button } from '@/components/ui/button'
 import SafeIcon from '@/components/common/SafeIcon.vue'
+import { competitionDemo } from '@/data/CompetitionDemoData'
+import { agentDemoScenarios, getAgentDemoScenario } from '@/data/agent-demo/scenarios'
+import { matchAgentDemoScenario } from '@/lib/agent-scenario-matcher'
+import { localAgentRuntime } from '@/lib/local-agent-runtime'
+import { remoteAgentApi } from '@/api/remote-agent-api'
+import { remoteAgentProvider } from '@/lib/remote-agent-provider'
+import type { AgentDemoScenario, AgentPresentationSnapshot, AgentResponseOption } from '@/lib/agent-presentation-types'
+import AgentPlanActionBar from './AgentPlanActionBar.vue'
+import { spatialMetadataForUpload } from '@/lib/spatial-metadata'
 
 type TaskStatus = TaskData['status']
 
@@ -47,9 +56,16 @@ interface PreparedScene {
 }
 
 const dataModeLabels: Record<DataMode, string> = {
-  mock: 'Mock 演示',
-  api: '真实 API',
-  hybrid: '混合回退',
+  mock: '预置场景',
+  api: '实时分析',
+  hybrid: '自动保障',
+}
+
+const templateTaskPrompts: Record<string, string> = {
+  'tpl-001': '找出靠近水线的细长沟渠，并排除道路，按风险高低排序',
+  'tpl-002': '找出高于水线的陡坡裸地区域，并按坡度和临水距离排序',
+  'tpl-003': '筛查近水扰动区域，结合前后影像变化按风险高低排序',
+  'tpl-004': '综合筛查岸线附近沟渠、陡坡裸地与新增扰动，输出证据和处置建议',
 }
 
 const isClient = ref(true)
@@ -74,10 +90,26 @@ const parsePreview = ref<ParsePreview | null>(null)
 const isExecuting = ref(false)
 const executionProgress = ref(0)
 const executionStage = ref('')
+const isGoldenCase = ref(false)
+const selectedAgentScenarioId = ref('')
+const agentResult = ref<AgentPresentationSnapshot | null>(null)
+const showSceneSettings = ref(false)
+const sceneMapExpanded = ref(false)
+const sceneSpatialPreview = computed(() => {
+  const source = postImageFile.value || imageFile.value || pointCloudFile.value || preImageFile.value
+  if (!source) return undefined
+  const role = source === pointCloudFile.value ? 'point_cloud_path' : source === preImageFile.value ? 'before_image_path' : source === postImageFile.value ? 'after_image_path' : 'image_path'
+  const metadata = spatialMetadataForUpload(source, role) as { extent?: { geographic?: { west: number; south: number; east: number; north: number; center_lon: number; center_lat: number } }; crs?: { code?: number; name?: string } } | undefined
+  const geographic = metadata?.extent?.geographic
+  if (!geographic) return undefined
+  const bounds: SpatialMapBounds = { west: geographic.west, south: geographic.south, east: geographic.east, north: geographic.north }
+  const marker: SpatialMapMarker = { id: 'scene-center', title: '巡查场景中心', longitude: geographic.center_lon, latitude: geographic.center_lat, level: 'target', subtitle: source.name }
+  return { bounds, marker, epsg: metadata?.crs?.code, crsName: metadata?.crs?.name, fileName: source.name }
+})
 
 const breadcrumb = [
-  { label: '全局总览', href: './dashboard.html' },
-  { label: '任务工作坊' },
+  { label: '智巡总览', href: './dashboard.html' },
+  { label: '发起巡查' },
 ]
 
 // 计算当前选中的任务模板，供参数回填和解析预览使用。
@@ -88,6 +120,12 @@ const selectedTemplate = computed(() => {
 // 计算当前选中的工作区域，供解析预览和默认 sceneId 使用。
 const selectedZone = computed(() => {
   return zones.value.find((zone) => zone.id === selectedZoneId.value)
+})
+
+const matchedAgentScenario = computed<AgentDemoScenario | null>(() => {
+  if (!inputText.value.trim()) return null
+  return getAgentDemoScenario(selectedAgentScenarioId.value)
+    ?? matchAgentDemoScenario({ taskText: inputText.value, sceneId: sceneId.value })
 })
 
 // 生成默认 sceneId，保证真实 API 模式即使不上传资产也有可读的场景标识。
@@ -127,15 +165,56 @@ function updateParsePreview(): void {
   }
 }
 
+function handleTaskTextChange(value: string): void {
+  inputText.value = value
+  const selectedScenario = getAgentDemoScenario(selectedAgentScenarioId.value)
+  if (selectedScenario && selectedScenario.taskText !== value.trim()) {
+    selectedAgentScenarioId.value = ''
+  }
+  agentResult.value = null
+  showSceneSettings.value = false
+  updateParsePreview()
+}
+
+function handleAgentScenarioSelect(scenario: AgentDemoScenario): void {
+  const scenarioTask = scenario.timeline[0].snapshot.task
+  selectedAgentScenarioId.value = scenario.scenarioId
+  inputText.value = scenario.taskText
+  selectedTemplateId.value = ''
+  sceneId.value = scenarioTask.sceneId || buildDefaultSceneId(selectedZoneId.value)
+  sampleId.value = scenarioTask.sampleId || ''
+  selectedPriority.value = scenario.decisionType === 'workflow' || scenario.decisionType === 'abstain' ? 'high' : 'medium'
+  dataMode.value = 'mock'
+  savePersistedDataMode('mock')
+  agentResult.value = null
+  updateParsePreview()
+}
+
+function handleAgentResponseOption(option: AgentResponseOption): void {
+  if (option.optionId === 'scope-standard') {
+    sceneId.value = 'scene-riverbank-001'
+    toast.success('已选择当前预置场景，请继续明确巡查重点')
+    updateParsePreview()
+    return
+  }
+
+  const workflowScenario = getAgentDemoScenario('near-water-disturbance-workflow')
+  if (!workflowScenario) return
+  handleAgentScenarioSelect(workflowScenario)
+  toast.success(option.optionId === 'target-disturbance' ? '已切换为新增扰动筛查任务' : '已切换为综合筛查任务')
+}
+
 // 选中模板后回填默认区域、优先级和任务描述。
 function handleTemplateSelect(templateId: string): void {
+  selectedAgentScenarioId.value = ''
+  agentResult.value = null
   selectedTemplateId.value = templateId
   const template = templates.value.find((item) => item.id === templateId)
 
   if (template) {
     selectedZoneId.value = template.defaultZoneId
     selectedPriority.value = template.defaultPriority
-    inputText.value = `执行${template.name}...`
+    inputText.value = templateTaskPrompts[template.id] || template.description
     if (!sceneId.value.trim()) {
       sceneId.value = buildDefaultSceneId(template.defaultZoneId, getEffectiveSampleId())
     }
@@ -174,8 +253,13 @@ function validateForm(): boolean {
     return false
   }
 
-  if (shouldUseApi(dataMode.value) && (imageFile.value || pointCloudFile.value) && (!imageFile.value || !pointCloudFile.value)) {
-    toast.error('上传预处理需要同时选择正射影像和点云文件')
+  if (Boolean(preImageFile.value) !== Boolean(postImageFile.value)) {
+    toast.error('进行变化分析时，请同时上传前、后时相影像')
+    return false
+  }
+
+  if (!shouldUseApi(dataMode.value) && !matchedAgentScenario.value) {
+    toast.error('预置场景需要选择一个任务目标')
     return false
   }
 
@@ -183,11 +267,11 @@ function validateForm(): boolean {
 }
 
 // 创建本地任务对象，真实 API 和 mock 执行都会先落本地任务。
-function createLocalTask(status: TaskStatus, progress: number): TaskData {
+function createLocalTask(status: TaskStatus, progress: number, taskId?: string): TaskData {
   const now = new Date().toISOString()
 
   return {
-    id: `task-${Date.now()}`,
+    id: taskId || `task-${Date.now()}`,
     name: inputText.value.trim().substring(0, 50) || '自定义巡检任务',
     inputText: inputText.value.trim(),
     templateId: selectedTemplateId.value || 'custom',
@@ -201,6 +285,15 @@ function createLocalTask(status: TaskStatus, progress: number): TaskData {
     createdByUserId: 'user-001',
     updatedAt: now,
   }
+}
+
+function getLocalAssetRoles(scenario: AgentDemoScenario): string[] {
+  const roles = new Set(scenario.timeline[0].snapshot.task.availableAssets)
+  if (imageFile.value) roles.add('正射影像')
+  if (pointCloudFile.value) roles.add('点云')
+  if (preImageFile.value) roles.add('前时相影像')
+  if (postImageFile.value) roles.add('后时相影像')
+  return [...roles]
 }
 
 // 持久化单个任务；存在同 ID 时覆盖，不存在时插入到任务列表顶部。
@@ -335,26 +428,85 @@ function markTaskFailed(task: TaskData): TaskData {
   }
 }
 
-// 启动 mock 演示任务；混合模式回退时会复用已经创建的任务 ID。
-async function startMockTask(existingTask?: TaskData): Promise<void> {
-  const now = new Date().toISOString()
-  const task = existingTask
-    ? {
-        ...existingTask,
-        status: 'running' as TaskStatus,
-        progress: 5,
-        startedAt: existingTask.startedAt || now,
-        finishedAt: undefined,
-        updatedAt: now,
-      }
-    : createLocalTask('running', 5)
+// 启动预置场景任务；典型案例会复用固定 ID，保证风险和工单关联不丢失。
+async function startLocalAgentTask(taskId?: string): Promise<void> {
+  const scenario = matchedAgentScenario.value
+  if (!scenario) return
 
-  executionStage.value = '正在启动本地演示任务...'
-  executionProgress.value = 10
+  executionStage.value = '正在生成 Agent 决策...'
+  executionProgress.value = 20
+  const initialSnapshot = await localAgentRuntime.createTask({
+    taskId,
+    taskText: inputText.value.trim(),
+    sceneId: sceneId.value.trim() || scenario.timeline[0].snapshot.task.sceneId,
+    sampleId: getEffectiveSampleId(),
+    assetRoles: getLocalAssetRoles(scenario),
+    scenarioId: scenario.scenarioId,
+  })
+
+  const shouldEnterExecution = scenario.decisionType === 'workflow' || scenario.decisionType === 'tool_call'
+  const task = createLocalTask(shouldEnterExecution ? 'running' : 'success', shouldEnterExecution ? 5 : 100, initialSnapshot.task.taskId)
   persistLocalTask(task)
-  toast.success('任务已创建，正在启动执行...')
 
-  await delay(800)
+  if (shouldEnterExecution) {
+    localAgentRuntime.start(task.id)
+    executionStage.value = scenario.decisionType === 'workflow' ? '正在组织专家协同流程...' : '正在调用专家能力...'
+    executionProgress.value = 35
+    toast.success('Agent 决策完成，正在进入智能执行')
+    await delay(500)
+    redirectToMonitor(task.id)
+    return
+  }
+
+  agentResult.value = localAgentRuntime.complete(task.id) ?? initialSnapshot
+  executionProgress.value = 100
+  executionStage.value = 'Agent 决策完成'
+  isExecuting.value = false
+  window.history.replaceState(null, '', `./task-studio.html?taskId=${task.id}`)
+
+  if (scenario.decisionType === 'clarification') toast.info('请根据 Agent 建议补充任务信息')
+  else if (scenario.decisionType === 'abstain') toast.warning('当前条件不足，系统未强行生成风险结论')
+  else toast.success('Agent 已形成场景回答')
+}
+
+async function uploadRemoteAsset(file: File, role: string): Promise<string> {
+  executionStage.value = `正在上传${role}...`
+  const presigned = await remoteAgentApi.presignUpload({ filename: file.name, media_type: file.type || 'application/octet-stream', job_id: 'uploads' })
+  await remoteAgentApi.uploadFile(presigned.upload_url, file)
+  const spatial = spatialMetadataForUpload(file, role)
+  await remoteAgentApi.completeUpload(presigned.artifact.artifact_id, { original_name: file.name, role, ...(spatial ? { spatial } : {}) })
+  return presigned.artifact_uri
+}
+
+async function startRemoteAgentTask(task: TaskData): Promise<void> {
+  const assets: Record<string, string> = {}
+  const uploadItems: Array<[File | null, string, string]> = [
+    [imageFile.value, 'image_path', '正射影像'],
+    [pointCloudFile.value, 'point_cloud_path', '点云'],
+    [preImageFile.value, 'before_image_path', '前时相影像'],
+    [postImageFile.value, 'after_image_path', '后时相影像'],
+  ]
+  for (const [file, key, label] of uploadItems) if (file) assets[key] = await uploadRemoteAsset(file, label)
+  executionStage.value = '正在提交任务并生成执行计划...'
+  executionProgress.value = 45
+  await remoteAgentProvider.createTask({
+    taskId: task.id,
+    taskText: task.inputText,
+    sceneId: sceneId.value,
+    assets,
+    metadata: {
+      name: task.name,
+      template_id: task.templateId,
+      zone_id: task.zoneId,
+      sample_id: task.sampleId,
+      priority: task.priority,
+      created_by_user_id: task.createdByUserId,
+      metadata: { source: 'web-task-studio', asset_roles: Object.keys(assets) },
+    },
+  })
+  executionProgress.value = 60
+  toast.success('任务已提交至真实 Agent，正在调度专家')
+  await delay(300)
   redirectToMonitor(task.id)
 }
 
@@ -368,7 +520,7 @@ async function handleExecute(): Promise<void> {
   savePersistedDataMode(dataMode.value)
 
   if (!shouldUseApi(dataMode.value)) {
-    await startMockTask()
+    await startLocalAgentTask()
     return
   }
 
@@ -376,17 +528,14 @@ async function handleExecute(): Promise<void> {
   persistLocalTask(runningTask)
 
   try {
-    toast.info('任务已创建，正在连接真实 API...')
-    const completedTask = await executeApiTask(runningTask)
-    toast.success(completedTask.status === 'success' ? '真实 API 执行完成' : '真实 API 执行结束，存在失败或需复核状态')
-    await delay(300)
-    redirectToMonitor(completedTask.id)
+    toast.info('任务已创建，正在连接真实 Agent...')
+    await startRemoteAgentTask(runningTask)
   } catch (error) {
     console.error('任务 API 执行失败', getApiErrorDetail(error))
 
-    if (canFallbackToMock(dataMode.value)) {
-      toast.warning(`真实 API 执行失败，已回退到 mock 演示：${getApiErrorMessage(error)}`)
-      await startMockTask(runningTask)
+    if (canFallbackToMock(dataMode.value) && matchedAgentScenario.value) {
+      toast.warning(`实时服务暂不可用，已启用保障数据：${getApiErrorMessage(error)}`)
+      await startLocalAgentTask(runningTask.id)
       return
     }
 
@@ -412,6 +561,8 @@ function handleReset(): void {
   preImageFile.value = null
   postImageFile.value = null
   parsePreview.value = null
+  selectedAgentScenarioId.value = ''
+  agentResult.value = null
   toast.info('表单已重置')
 }
 
@@ -423,18 +574,33 @@ onMounted(() => {
 
     const params = new URLSearchParams(window.location.search)
     const taskId = params.get('taskId')
+    const requestedSceneId = params.get('sceneId')
+    isGoldenCase.value = params.get('demo') === 'golden-case' || taskId === competitionDemo.taskId
+
+    if (isGoldenCase.value) {
+      dataMode.value = 'mock'
+      savePersistedDataMode('mock')
+      selectedAgentScenarioId.value = 'near-water-disturbance-workflow'
+    }
 
     if (!taskId) return
 
     const historicalTask = TaskService.getById(taskId)
     if (!historicalTask) return
 
+    const localSession = localAgentRuntime.getSession(taskId)
+    if (localSession) {
+      selectedAgentScenarioId.value = localSession.scenarioId
+      const storedSnapshot = localAgentRuntime.getSnapshot(taskId)
+      if (storedSnapshot?.response) agentResult.value = storedSnapshot
+    }
+
     inputText.value = historicalTask.inputText
     selectedTemplateId.value = historicalTask.templateId
     selectedZoneId.value = historicalTask.zoneId
     selectedPriority.value = historicalTask.priority
     sampleId.value = historicalTask.sampleId || ''
-    sceneId.value = buildDefaultSceneId(historicalTask.zoneId, historicalTask.sampleId)
+    sceneId.value = requestedSceneId || buildDefaultSceneId(historicalTask.zoneId, historicalTask.sampleId)
     updateParsePreview()
     toast.success('已加载历史任务参数')
   })
@@ -442,10 +608,10 @@ onMounted(() => {
 </script>
 
 <template>
-  <div v-if="isClient" class="flex flex-col min-h-screen bg-background">
+  <div v-if="isClient" class="flex min-h-screen flex-col bg-background">
     <PageHeader
-      title="任务工作坊"
-      subtitle="通过自然语言或预设模板创建巡检任务"
+      title="发起智能巡查"
+      subtitle="描述目标、上传数据，其余交给 Agent"
       :breadcrumb="breadcrumb"
     >
       <template #actions>
@@ -457,101 +623,52 @@ onMounted(() => {
           @click="handleReset"
         >
           <SafeIcon name="RotateCcw" :size="16" />
-          重置表单
+          清空
         </Button>
       </template>
     </PageHeader>
 
-    <div class="flex-1 overflow-y-auto min-h-0 page-body">
-      <div class="max-w-6xl mx-auto space-y-6">
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div class="lg:col-span-2 space-y-6">
-            <TaskInputSection
-              v-model="inputText"
-              @update:modelValue="updateParsePreview"
-            />
+    <div class="min-h-0 flex-1 overflow-y-auto page-body">
+      <div class="mx-auto max-w-[1180px] space-y-4 pb-8">
+        <div class="grid items-start gap-4 lg:grid-cols-[minmax(0,.9fr)_minmax(0,1.1fr)]">
+          <TaskInputSection :model-value="inputText" @update:model-value="handleTaskTextChange" />
+          <SceneAssetPanel v-model:data-mode="dataMode" v-model:scene-id="sceneId" v-model:scene-sample-file-id="sceneSampleFileId" v-model:image-file="imageFile" v-model:point-cloud-file="pointCloudFile" v-model:pre-image-file="preImageFile" v-model:post-image-file="postImageFile" :disabled="isExecuting" @change="handleSceneAssetChange" />
+        </div>
 
-            <TaskTemplateList
-              :templates="templates"
-              :selected-template-id="selectedTemplateId"
-              @select="handleTemplateSelect"
-            />
+        <section v-if="sceneSpatialPreview" class="mx-auto w-full max-w-[820px] overflow-hidden rounded-2xl border border-cyan-300/15 bg-[#07131d]/80 p-3">
+          <div class="mb-3 flex flex-wrap items-center justify-between gap-2 px-1">
+            <div class="flex items-center gap-2">
+              <span class="grid h-8 w-8 place-items-center rounded-lg bg-cyan-300/10 text-cyan-200"><SafeIcon name="MapPinned" :size="15" /></span>
+              <div><p class="text-xs font-semibold text-white">任务空间范围已识别</p><p class="mt-0.5 max-w-[540px] truncate text-[10px] text-slate-400">{{ sceneSpatialPreview.fileName }}</p></div>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="hidden rounded-full border border-emerald-300/20 bg-emerald-300/10 px-2.5 py-1 text-[9px] text-emerald-200 sm:inline-flex">EPSG:{{ sceneSpatialPreview.epsg }} · 提交后随任务传递</span>
+              <button type="button" class="inline-flex h-7 items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.04] px-2.5 text-[10px] text-slate-300 transition hover:border-cyan-300/20 hover:text-cyan-100" @click="sceneMapExpanded = !sceneMapExpanded">
+                <SafeIcon :name="sceneMapExpanded ? 'Minimize2' : 'Maximize2'" :size="12" />{{ sceneMapExpanded ? '收起地图' : '展开地图' }}
+              </button>
+            </div>
           </div>
+          <div class="mx-auto max-w-[760px]">
+            <RealSpatialMap :center="sceneSpatialPreview.marker" :bounds="sceneSpatialPreview.bounds" :markers="[sceneSpatialPreview.marker]" :height="sceneMapExpanded ? 'clamp(300px, 32vw, 380px)' : '220px'" compact />
+          </div>
+        </section>
 
-          <div class="space-y-6">
-            <TaskParameterPanel
-              v-model:zone-id="selectedZoneId"
-              v-model:priority="selectedPriority"
-              v-model:sample-id="sampleId"
-              :zones="zones"
-              @change="handleParameterChange"
-            />
-
-            <SceneAssetPanel
-              v-model:data-mode="dataMode"
-              v-model:scene-id="sceneId"
-              v-model:scene-sample-file-id="sceneSampleFileId"
-              v-model:image-file="imageFile"
-              v-model:point-cloud-file="pointCloudFile"
-              v-model:pre-image-file="preImageFile"
-              v-model:post-image-file="postImageFile"
-              :disabled="isExecuting"
-              @change="handleSceneAssetChange"
-            />
-
-            <div class="surface-base card-padding space-y-4">
-              <h3 class="text-item-title">解析预览</h3>
-
-              <div v-if="parsePreview" class="space-y-3 text-sm">
-                <div class="flex justify-between items-start gap-4">
-                  <span class="text-muted-foreground">模板</span>
-                  <span class="font-medium text-foreground text-right">{{ parsePreview.templateName }}</span>
-                </div>
-                <div class="flex justify-between items-start gap-4">
-                  <span class="text-muted-foreground">区域</span>
-                  <span class="font-medium text-foreground text-right">{{ parsePreview.zoneName }}</span>
-                </div>
-                <div class="flex justify-between items-start gap-4">
-                  <span class="text-muted-foreground">优先级</span>
-                  <span class="font-medium text-foreground capitalize">{{ parsePreview.priority }}</span>
-                </div>
-                <div class="flex justify-between items-start gap-4">
-                  <span class="text-muted-foreground">运行模式</span>
-                  <span class="font-medium text-foreground">{{ parsePreview.dataMode }}</span>
-                </div>
-                <div class="flex justify-between items-start gap-4">
-                  <span class="text-muted-foreground">Scene ID</span>
-                  <span class="font-medium text-foreground text-right break-all">{{ parsePreview.sceneId }}</span>
-                </div>
-                <div class="flex justify-between items-start gap-4">
-                  <span class="text-muted-foreground">预计耗时</span>
-                  <span class="font-medium text-foreground">{{ parsePreview.estimatedDuration }}</span>
-                </div>
-                <div class="pt-2 border-t border-border/50" />
-                <div v-if="isExecuting" class="space-y-2">
-                  <div class="h-1.5 overflow-hidden rounded-full bg-muted">
-                    <div class="h-full rounded-full bg-primary transition-all" :style="{ width: `${executionProgress}%` }" />
-                  </div>
-                  <p class="text-xs text-muted-foreground">{{ executionStage }}</p>
-                </div>
-                <Button
-                  class="w-full gap-2 bg-primary hover:bg-primary-hover text-primary-foreground"
-                  :disabled="isExecuting || !inputText.trim()"
-                  @click="handleExecute"
-                >
-                  <SafeIcon v-if="!isExecuting" name="Play" :size="16" />
-                  <div v-else class="w-4 h-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
-                  {{ isExecuting ? '启动中...' : '立即执行' }}
-                </Button>
-              </div>
-
-              <div v-else class="text-center py-8 text-muted-foreground">
-                <SafeIcon name="Inbox" :size="32" class="mx-auto mb-2 opacity-30" />
-                <p class="text-sm">输入任务或选择模板以生成预览</p>
+        <details class="rounded-2xl border border-white/[0.07] bg-card/40 px-4 py-3">
+          <summary class="cursor-pointer text-xs font-medium text-muted-foreground">更多设置与任务模板</summary>
+          <div class="mt-4 grid items-start gap-4 lg:grid-cols-[minmax(280px,.38fr)_minmax(0,.62fr)]">
+            <TaskParameterPanel v-model:zone-id="selectedZoneId" v-model:priority="selectedPriority" v-model:sample-id="sampleId" :zones="zones" @change="handleParameterChange" />
+            <div>
+              <p class="mb-2 text-xs text-muted-foreground">快速填入任务目标</p>
+              <div class="grid gap-2 sm:grid-cols-2">
+                <button v-for="scenario in agentDemoScenarios" :key="scenario.scenarioId" type="button" class="rounded-xl border px-3 py-2.5 text-left text-xs transition disabled:opacity-50" :class="scenario.scenarioId === matchedAgentScenario?.scenarioId ? 'border-primary/40 bg-primary/[0.08] text-primary' : 'border-white/[0.07] bg-black/10 text-card-foreground hover:border-white/[0.14]'" :disabled="isExecuting" @click="handleAgentScenarioSelect(scenario)">
+                  <strong class="block truncate font-medium">{{ scenario.title }}</strong><span class="mt-1 block truncate text-[10px] text-muted-foreground">{{ scenario.taskText }}</span>
+                </button>
               </div>
             </div>
           </div>
-        </div>
+        </details>
+
+        <AgentPlanActionBar :disabled="!inputText.trim() || !selectedZoneId" :is-executing="isExecuting" :progress="executionProgress" :stage="executionStage" @execute="handleExecute" />
       </div>
     </div>
   </div>

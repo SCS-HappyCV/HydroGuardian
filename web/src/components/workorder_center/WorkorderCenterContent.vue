@@ -20,6 +20,8 @@ import WorkorderDetailPanel from './WorkorderDetailPanel.vue'
 import WorkorderCreateDialog from './WorkorderCreateDialog.vue'
 import * as WorkorderService from '@/data/WorkorderService'
 import type { WorkorderVO } from '@/data/WorkorderService'
+import { remoteAgentApi } from '@/api/remote-agent-api'
+import { mapRemoteWorkorder } from '@/lib/remote-workorder-mapper'
 
 const isClient = ref(true)
 const allWorkorders = ref(WorkorderService.getAll())
@@ -27,11 +29,25 @@ const selectedWorkorder = ref<WorkorderVO | null>(null)
 const showDetailPanel = ref(false)
 const showCreateDialog = ref(false)
 const prefilledRiskId = ref<string | null>(null)
+const prefilledCaseId = ref<string | null>(null)
 
 const statusFilter = ref<string>('all')
 const searchKeyword = ref('')
 const currentPage = ref(1)
 const pageSize = ref(10)
+
+const closureStats = computed(() => {
+  const items = allWorkorders.value
+  const closed = items.filter((item) => item.status === 'closed').length
+  const inProgress = items.filter((item) => item.status === 'doing').length
+  const review = items.filter((item) => item.status === 'review').length
+  return [
+    { label: 'AI 已生成工单', value: items.length, suffix: '项', icon: 'Sparkles', tone: 'text-cyan-300', background: 'bg-cyan-300/[0.06] border-cyan-300/15' },
+    { label: '现场处置中', value: inProgress, suffix: '项', icon: 'HardHat', tone: 'text-amber-300', background: 'bg-amber-300/[0.06] border-amber-300/15' },
+    { label: '待复核确认', value: review, suffix: '项', icon: 'ClipboardCheck', tone: 'text-violet-300', background: 'bg-violet-300/[0.06] border-violet-300/15' },
+    { label: '闭环完成率', value: items.length ? Math.round((closed / items.length) * 100) : 0, suffix: '%', icon: 'BadgeCheck', tone: 'text-emerald-300', background: 'bg-emerald-300/[0.06] border-emerald-300/15' },
+  ]
+})
 
 // 根据状态和关键词过滤工单列表，保持列表、分页和统计使用同一份数据源。
 const filteredWorkorders = computed(() => {
@@ -73,6 +89,10 @@ const tableColumns = [
 
 // 点击表格行后加载完整工单视图对象，并打开右侧详情面板。
 const handleRowClick = (row: any) => {
+  if (String(row.id).startsWith('wo_')) {
+    window.location.href = `./workorder-detail.html?orderId=${encodeURIComponent(row.id)}`
+    return
+  }
   const vo = WorkorderService.getByIdVO(row.id)
   if (vo) {
     selectedWorkorder.value = vo
@@ -91,6 +111,7 @@ const handleWorkorderCreated = (newWorkorder: any) => {
   toast.success('工单创建成功')
   showCreateDialog.value = false
   currentPage.value = 1
+  window.location.href = `./workorder-detail.html?orderId=${encodeURIComponent(newWorkorder.id)}`
 }
 
 // 切换状态筛选时重置页码，避免停留在无数据的高页码。
@@ -130,15 +151,24 @@ const handleDetailPanelUpdate = () => {
 // 页面挂载后读取 URL 查询参数，支持从风险页带 riskId 进入创建工单流程。
 onMounted(() => {
   isClient.value = false
-  requestAnimationFrame(() => {
+  requestAnimationFrame(async () => {
+    try {
+      const remote = (await remoteAgentApi.listWorkorders()).map(mapRemoteWorkorder)
+      allWorkorders.value = [...remote, ...WorkorderService.getAll()]
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : '处置工单同步失败')
+      allWorkorders.value = WorkorderService.getAll()
+    }
     isClient.value = true
 
     const searchParams = new URLSearchParams(window.location.search)
     const riskIdParam = searchParams.get('riskId')
+    const caseIdParam = searchParams.get('caseId')
     const statusParam = searchParams.get('status')
 
     if (riskIdParam) {
       prefilledRiskId.value = riskIdParam
+      prefilledCaseId.value = caseIdParam
       showCreateDialog.value = true
     }
 
@@ -159,8 +189,8 @@ watch(() => filteredWorkorders.value.length, () => {
 <template>
   <div v-if="isClient" class="flex flex-col h-full min-h-0 bg-background">
     <PageHeader
-      title="工单处理中心"
-      subtitle="追踪风险处置的全生命周期"
+      title="处置闭环"
+      subtitle="承接 AI 风险成果，追踪人工确认、现场处置与复核关闭"
       :breadcrumb="[
         { label: '首页', href: './dashboard.html' },
         { label: '工单中心' }
@@ -178,6 +208,23 @@ watch(() => filteredWorkorders.value.length, () => {
     </PageHeader>
 
     <div class="flex-1 overflow-y-auto min-h-0 flex flex-col">
+      <div class="grid grid-cols-2 gap-3 px-6 pt-4 xl:grid-cols-4">
+        <article
+          v-for="item in closureStats"
+          :key="item.label"
+          class="flex items-center justify-between rounded-xl border p-3"
+          :class="item.background"
+        >
+          <div>
+            <div class="text-[11px] text-muted-foreground">{{ item.label }}</div>
+            <div class="mt-1 text-xl font-semibold text-foreground">{{ item.value }}<span class="ml-1 text-xs font-normal text-muted-foreground">{{ item.suffix }}</span></div>
+          </div>
+          <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-background/30" :class="item.tone">
+            <SafeIcon :name="item.icon" :size="18" />
+          </span>
+        </article>
+      </div>
+
       <div class="page-body pb-4 border-b border-border/50">
         <div class="flex flex-wrap items-center gap-3">
           <div class="flex items-center gap-2">
@@ -251,6 +298,7 @@ watch(() => filteredWorkorders.value.length, () => {
     <WorkorderCreateDialog
       :open="showCreateDialog"
       :prefilled-risk-id="prefilledRiskId"
+      :prefilled-case-id="prefilledCaseId"
       @close="() => showCreateDialog = false"
       @created="handleWorkorderCreated"
     />

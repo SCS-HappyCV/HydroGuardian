@@ -1,6 +1,5 @@
-
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { toast } from 'vue-sonner'
 import {
   Sheet,
@@ -8,7 +7,6 @@ import {
   SheetHeader,
   SheetFooter,
   SheetTitle,
-  SheetDescription,
 } from '@/components/ui/sheet'
 import {
   Select,
@@ -19,14 +17,17 @@ import {
 } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
-import { Badge } from '@/components/ui/badge'
-import { Separator } from '@/components/ui/separator'
 import SafeIcon from '@/components/common/SafeIcon.vue'
+import StatusBadge from '@/components/common/StatusBadge.vue'
+import AiSourceSummary from '@/components/workorder_detail/AiSourceSummary.vue'
 import WorkorderStatusTimeline from './WorkorderStatusTimeline.vue'
 import type { WorkorderVO } from '@/data/WorkorderService'
 import * as WorkorderService from '@/data/WorkorderService'
 import * as WorkorderTimelineService from '@/data/WorkorderTimelineService'
 import * as RiskEventService from '@/data/RiskEventService'
+import * as WorkorderEvidenceService from '@/data/WorkorderEvidenceService'
+import * as WorkorderReviewService from '@/data/WorkorderReviewService'
+import * as TaskService from '@/data/TaskService'
 import * as UserService from '@/data/UserService'
 
 const props = defineProps<{
@@ -39,235 +40,257 @@ const emit = defineEmits<{
   (e: 'update'): void
 }>()
 
-const currentWorkorder = ref(props.workorder)
+const currentWorkorder = ref<WorkorderVO>({ ...props.workorder })
 const timeline = ref(WorkorderTimelineService.queryByOrderId(props.workorder.id))
-const riskDetail = computed(() => RiskEventService.getByIdVO(currentWorkorder.value.riskId))
-const assigneeOptions = computed(() => UserService.getAll().map(u => ({ id: u.id, name: u.name })))
-const reviewerOptions = computed(() => UserService.getAll().map(u => ({ id: u.id, name: u.name })))
-
 const selectedAssignee = ref(currentWorkorder.value.assigneeUserId || '')
-const selectedReviewer = ref(currentWorkorder.value.reviewerUserId || '')
 const processingNote = ref('')
-const showStatusDialog = ref(false)
-const newStatus = ref(currentWorkorder.value.status)
 
-const statusOptions = [
-  { value: 'todo', label: '待处理' },
-  { value: 'doing', label: '处理中' },
-  { value: 'review', label: '复核中' },
-  { value: 'closed', label: '已关闭' },
-]
-
-const canTransitionTo = (targetStatus: string): boolean => {
-  const current = currentWorkorder.value.status
-  const transitions: Record<string, string[]> = {
-    todo: ['doing'],
-    doing: ['review', 'todo'],
-    review: ['closed', 'doing'],
-    closed: [],
-  }
-  return transitions[current]?.includes(targetStatus) || false
-}
-
-const handleAssigneeChange = (userId: string) => {
-  selectedAssignee.value = userId
-  currentWorkorder.value.assigneeUserId = userId
-  currentWorkorder.value.assigneeUserName = UserService.getById(userId)?.name
-  WorkorderService.savePersisted(WorkorderService.getAll())
-  toast.success('责任人已更新')
-  emit('update')
-}
-
-const handleStatusChange = () => {
-  if (!canTransitionTo(newStatus.value)) {
-    toast.error('不允许的状态转换')
-    return
-  }
-
-  currentWorkorder.value.status = newStatus.value as any
-  currentWorkorder.value.updatedAt = new Date().toISOString()
-  WorkorderService.savePersisted(WorkorderService.getAll())
-  timeline.value = WorkorderTimelineService.queryByOrderId(currentWorkorder.value.id)
-  toast.success('工单状态已更新')
-  showStatusDialog.value = false
-  emit('update')
-}
-
-const handleSubmitReview = () => {
-  if (currentWorkorder.value.status !== 'doing') {
-    toast.error('只有处理中的工单才能提交复核')
-    return
-  }
-
-  if (!processingNote.value.trim()) {
-    toast.error('请填写处理说明')
-    return
-  }
-
-  currentWorkorder.value.status = 'review'
-  currentWorkorder.value.updatedAt = new Date().toISOString()
-  currentWorkorder.value.summary = processingNote.value
-  WorkorderService.savePersisted(WorkorderService.getAll())
-  timeline.value = WorkorderTimelineService.queryByOrderId(currentWorkorder.value.id)
-  toast.success('已提交复核申请')
-  processingNote.value = ''
-  emit('update')
-}
-
-const handleNavigateToRisk = () => {
-  window.location.href = `./risk-workspace.html?riskId=${currentWorkorder.value.riskId}`
-}
-
-const handleNavigateToReview = () => {
-  window.location.href = `./workorder-review.html?orderId=${currentWorkorder.value.id}`
-}
-
-onMounted(() => {
-  currentWorkorder.value = props.workorder
-  timeline.value = WorkorderTimelineService.queryByOrderId(props.workorder.id)
+const riskDetail = computed(() => RiskEventService.getByIdVO(currentWorkorder.value.riskId))
+const sourceTask = computed(() => {
+  const taskId = currentWorkorder.value.taskId || riskDetail.value?.taskId
+  return taskId ? TaskService.getById(taskId) : null
 })
+const evidence = computed(() => WorkorderEvidenceService.query({ filter: { orderId: currentWorkorder.value.id } }))
+const review = computed(() => WorkorderReviewService.getByOrderIdVO(currentWorkorder.value.id))
+const assigneeOptions = computed(() => UserService.getAll().map((user) => ({ id: user.id, name: user.name })))
+
+const statusLabel = computed(() => ({
+  todo: '待人工确认',
+  doing: '现场处置中',
+  review: '等待复核',
+  closed: '已闭环',
+})[currentWorkorder.value.status])
+
+const deadlineLabel = computed(() => new Date(currentWorkorder.value.dueAt).toLocaleString('zh-CN', {
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+}))
+
+function reloadTimeline() {
+  timeline.value = WorkorderTimelineService.queryByOrderId(currentWorkorder.value.id)
+}
+
+function syncWorkorder(next: WorkorderVO) {
+  currentWorkorder.value = { ...next }
+  selectedAssignee.value = next.assigneeUserId || ''
+  processingNote.value = ''
+  reloadTimeline()
+}
+
+function handleAssigneeChange(userId: string) {
+  selectedAssignee.value = userId
+  const assigneeName = UserService.getById(userId)?.name
+  const updated = WorkorderService.update(currentWorkorder.value.id, { assigneeUserId: userId })
+  if (updated) currentWorkorder.value = { ...currentWorkorder.value, ...updated, assigneeUserName: assigneeName }
+  toast.success(`责任人已更新为${assigneeName || '现场人员'}`)
+  emit('update')
+}
+
+function handleStartProcessing() {
+  if (!selectedAssignee.value) {
+    toast.error('请先选择现场责任人')
+    return
+  }
+
+  const now = new Date().toISOString()
+  const assigneeName = UserService.getById(selectedAssignee.value)?.name
+  const updated = WorkorderService.update(currentWorkorder.value.id, { status: 'doing', updatedAt: now })
+  if (updated) currentWorkorder.value = { ...currentWorkorder.value, ...updated }
+  WorkorderTimelineService.appendEvent({
+    id: `wot-${Date.now()}`,
+    orderId: currentWorkorder.value.id,
+    actorUserId: selectedAssignee.value,
+    action: 'processing',
+    note: `人工确认风险，已派发${assigneeName || '现场责任人'}开展处置。`,
+    createdAt: now,
+  })
+  reloadTimeline()
+  toast.success('已确认风险并派发现场处置')
+  emit('update')
+}
+
+function handleSubmitReview() {
+  if (!processingNote.value.trim()) {
+    toast.error('请先填写现场处理说明')
+    return
+  }
+
+  const now = new Date().toISOString()
+  const updated = WorkorderService.update(currentWorkorder.value.id, {
+    status: 'review',
+    summary: processingNote.value,
+    updatedAt: now,
+  })
+  if (updated) currentWorkorder.value = { ...currentWorkorder.value, ...updated }
+  WorkorderTimelineService.appendEvent({
+    id: `wot-${Date.now()}`,
+    orderId: currentWorkorder.value.id,
+    actorUserId: currentWorkorder.value.assigneeUserId || 'user-002',
+    action: 'review_requested',
+    note: processingNote.value,
+    createdAt: now,
+  })
+  reloadTimeline()
+  processingNote.value = ''
+  toast.success('现场反馈已提交复核')
+  emit('update')
+}
+
+function handleNavigateToRisk() {
+  window.location.href = `./risk-workspace.html?riskId=${encodeURIComponent(currentWorkorder.value.riskId)}`
+}
+
+function handleNavigateToReview() {
+  window.location.href = `./workorder-review.html?orderId=${encodeURIComponent(currentWorkorder.value.id)}`
+}
+
+function handleNavigateToDetail() {
+  window.location.href = `./workorder-detail.html?orderId=${encodeURIComponent(currentWorkorder.value.id)}`
+}
+
+watch(() => props.workorder, syncWorkorder)
 </script>
 
 <template>
-  <Sheet :open="open" @update:open="(val) => !val && emit('close')">
-    <SheetContent side="right" class="flex flex-col max-w-2xl max-h-[80vh] overflow-hidden">
-      <SheetHeader class="flex-shrink-0">
-        <SheetTitle class="text-xl">{{ currentWorkorder.title }}</SheetTitle>
-        <SheetDescription>
-          <div class="flex items-center gap-2 mt-2">
-            <Badge :class="`status-badge-${currentWorkorder.status}`">
-              {{ { todo: '待处理', doing: '处理中', review: '复核中', closed: '已关闭' }[currentWorkorder.status] }}
-            </Badge>
-            <span class="text-xs text-muted-foreground">
-              创建于 {{ new Date(currentWorkorder.createdAt).toLocaleDateString('zh-CN') }}
-            </span>
+  <Sheet :open="open" @update:open="(value) => !value && emit('close')">
+    <SheetContent
+      side="right"
+      class="h-dvh max-h-none w-full max-w-none gap-0 overflow-hidden border-l border-cyan-400/15 bg-[#07111f] p-0 sm:max-w-[760px]"
+    >
+      <SheetHeader class="shrink-0 border-b border-white/10 bg-[#091725]/95 px-6 py-4 pr-14">
+        <div class="flex flex-wrap items-start justify-between gap-3">
+          <div class="min-w-0">
+            <div class="mb-1.5 flex items-center gap-2">
+              <span class="text-[10px] font-semibold uppercase tracking-[0.2em] text-cyan-300">CLOSURE DETAIL</span>
+              <StatusBadge :status="currentWorkorder.status" size="sm" />
+            </div>
+            <SheetTitle class="truncate text-lg text-white">{{ currentWorkorder.title }}</SheetTitle>
+            <p class="mt-1 text-[11px] text-slate-400">
+              {{ currentWorkorder.id }} · {{ statusLabel }}
+            </p>
           </div>
-        </SheetDescription>
+          <div class="grid grid-cols-2 gap-2 text-right">
+            <div class="rounded-lg border border-white/10 bg-white/[0.035] px-3 py-2">
+              <div class="text-[9px] text-slate-500">现场责任人</div>
+              <div class="mt-0.5 text-xs font-medium text-slate-200">{{ currentWorkorder.assigneeUserName || '待分配' }}</div>
+            </div>
+            <div class="rounded-lg border border-white/10 bg-white/[0.035] px-3 py-2">
+              <div class="text-[9px] text-slate-500">处置时限</div>
+              <div class="mt-0.5 text-xs font-medium text-slate-200">{{ deadlineLabel }}</div>
+            </div>
+          </div>
+        </div>
       </SheetHeader>
 
-      <div class="flex-1 overflow-y-auto min-h-0 space-y-6 py-4 px-6">
-        <!-- Risk Info Section -->
-        <div class="space-y-3">
-          <h4 class="text-sm font-semibold text-foreground">来源风险</h4>
-          <div v-if="riskDetail" class="surface-base card-padding space-y-2">
-            <div class="flex items-start justify-between gap-2">
-              <div class="flex-1">
-                <p class="text-sm font-medium text-foreground">{{ riskDetail.title }}</p>
-                <p class="text-xs text-muted-foreground mt-1">{{ riskDetail.description }}</p>
-              </div>
-              <Badge :class="`status-badge-${riskDetail.level}`">
-                {{ { high: '高风险', medium: '中风险', low: '低风险', review_required: '待复核' }[riskDetail.level] }}
-              </Badge>
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              class="w-full justify-start text-primary hover:bg-primary/10 text-xs"
-              @click="handleNavigateToRisk"
-            >
-              <SafeIcon name="ExternalLink" :size="12" class="mr-1" />
-              查看风险详情
-            </Button>
-          </div>
-        </div>
-
-        <Separator class="opacity-50" />
-
-        <!-- Responsibility Section -->
-        <div class="space-y-3">
-          <h4 class="text-sm font-semibold text-foreground">责任分配</h4>
-          <div class="space-y-2">
-            <div>
-              <label class="text-label text-xs mb-1 block">责任人</label>
-              <Select :model-value="selectedAssignee" @update:model-value="handleAssigneeChange">
-                <SelectTrigger class="h-9 bg-card/50">
-                  <SelectValue placeholder="选择责任人" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="">未分配</SelectItem>
-                  <SelectItem v-for="user in assigneeOptions" :key="user.id" :value="user.id">
-                    {{ user.name }}
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <label class="text-label text-xs mb-1 block">复核人</label>
-              <Select :model-value="selectedReviewer" @update:model-value="(val) => selectedReviewer = val">
-                <SelectTrigger class="h-9 bg-card/50" disabled>
-                  <SelectValue :placeholder="currentWorkorder.reviewerUserName || '待分配'" />
-                </SelectTrigger>
-              </Select>
-            </div>
-          </div>
-        </div>
-
-        <Separator class="opacity-50" />
-
-        <!-- Processing Section -->
-        <div class="space-y-3">
-          <h4 class="text-sm font-semibold text-foreground">处理进展</h4>
-          <Textarea
-            v-model="processingNote"
-            placeholder="记录处理过程、发现和建议..."
-            class="min-h-[100px] bg-card/50 border-border text-xs"
+      <div class="min-h-0 flex-1 overflow-y-auto">
+        <div class="space-y-4 p-4 sm:p-5">
+          <AiSourceSummary
+            :workorder="currentWorkorder"
+            :risk="riskDetail"
+            :task="sourceTask"
+            :evidence="evidence"
+            compact
           />
-          <p class="text-xs text-muted-foreground">{{ processingNote.length }}/500 字</p>
-        </div>
 
-        <Separator class="opacity-50" />
+          <div class="grid gap-4" :class="currentWorkorder.status === 'closed' ? 'grid-cols-1' : 'lg:grid-cols-[230px_1fr]'">
+            <section v-if="currentWorkorder.status !== 'closed'" class="space-y-4 rounded-2xl border border-white/10 bg-white/[0.025] p-4">
+              <div>
+                <h3 class="flex items-center gap-2 text-xs font-semibold text-white">
+                  <SafeIcon name="UsersRound" :size="14" class="text-cyan-300" />
+                  责任与现场反馈
+                </h3>
+                <p class="mt-1 text-[10px] text-slate-500">完成当前阶段所需的最少信息</p>
+              </div>
 
-        <!-- Timeline Section -->
-        <div class="space-y-3">
-          <h4 class="text-sm font-semibold text-foreground">处理时间线</h4>
-          <WorkorderStatusTimeline :timeline="timeline" />
-        </div>
+              <div class="space-y-1.5">
+                <label class="text-[10px] text-slate-400">现场责任人</label>
+                <Select :model-value="selectedAssignee" @update:model-value="handleAssigneeChange">
+                  <SelectTrigger class="h-9 border-white/10 bg-black/20 text-xs">
+                    <SelectValue placeholder="选择责任人" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem v-for="user in assigneeOptions" :key="user.id" :value="user.id">
+                      {{ user.name }}
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
 
-        <Separator class="opacity-50" />
+              <div v-if="currentWorkorder.status === 'doing'" class="space-y-1.5">
+                <label class="text-[10px] text-slate-400">现场处理说明</label>
+                <Textarea
+                  v-model="processingNote"
+                  placeholder="记录现场措施、处理结果和回传证据…"
+                  class="min-h-[128px] resize-none border-white/10 bg-black/20 text-xs"
+                  maxlength="500"
+                />
+                <p class="text-right text-[9px] text-slate-500">{{ processingNote.length }}/500</p>
+              </div>
 
-        <!-- Status Change Section -->
-        <div class="space-y-3">
-          <h4 class="text-sm font-semibold text-foreground">状态流转</h4>
-          <div class="flex flex-wrap gap-2">
-            <Button
-              v-for="status in statusOptions"
-              :key="status.value"
-              variant="outline"
-              size="sm"
-              :disabled="!canTransitionTo(status.value) || currentWorkorder.status === status.value"
-              class="text-xs"
-              @click="() => { newStatus = status.value; showStatusDialog = true }"
-            >
-              {{ status.label }}
-            </Button>
+              <div v-if="currentWorkorder.status === 'review'" class="rounded-xl border border-violet-300/15 bg-violet-300/[0.05] p-3">
+                <div class="flex items-center gap-2 text-xs font-medium text-violet-200">
+                  <SafeIcon name="ClipboardCheck" :size="14" />
+                  已进入人工复核
+                </div>
+                <p class="mt-2 text-[10px] leading-relaxed text-slate-400">现场反馈已锁定，请由复核人确认处置效果和证据完整性。</p>
+              </div>
+            </section>
+
+            <WorkorderStatusTimeline
+              :workorder="currentWorkorder"
+              :timeline="timeline"
+              :evidence="evidence"
+              :review="review"
+            />
           </div>
         </div>
       </div>
 
-      <SheetFooter class="flex-shrink-0 gap-2 pt-4 border-t border-border/50">
+      <SheetFooter class="shrink-0 flex-row items-center justify-between gap-2 border-t border-white/10 bg-[#091725] px-5 py-3 sm:justify-between">
+        <div class="flex gap-2">
+          <Button variant="ghost" size="sm" class="gap-1.5 text-slate-300" @click="handleNavigateToRisk">
+            <SafeIcon name="MapPinned" :size="14" />
+            风险证据
+          </Button>
+          <Button variant="outline" size="sm" class="gap-1.5 border-white/10" @click="handleNavigateToDetail">
+            <SafeIcon name="Maximize2" :size="14" />
+            完整详情
+          </Button>
+        </div>
+
         <Button
-          v-if="currentWorkorder.status === 'doing'"
-          class="gap-2 bg-primary hover:bg-primary-hover text-primary-foreground flex-1"
-          @click="handleSubmitReview"
+          v-if="currentWorkorder.status === 'todo'"
+          size="sm"
+          class="gap-1.5"
+          @click="handleStartProcessing"
         >
           <SafeIcon name="Send" :size="14" />
-          提交复核
+          确认并派发处置
         </Button>
         <Button
-          v-if="currentWorkorder.status === 'review'"
-          class="gap-2 bg-accent hover:bg-accent-hover text-accent-foreground flex-1"
+          v-else-if="currentWorkorder.status === 'doing'"
+          size="sm"
+          class="gap-1.5"
+          @click="handleSubmitReview"
+        >
+          <SafeIcon name="UploadCloud" :size="14" />
+          提交现场反馈
+        </Button>
+        <Button
+          v-else-if="currentWorkorder.status === 'review'"
+          size="sm"
+          class="gap-1.5 bg-violet-500 hover:bg-violet-400"
           @click="handleNavigateToReview"
         >
-          <SafeIcon name="CheckCircle2" :size="14" />
-          进行复核
+          <SafeIcon name="UserRoundCheck" :size="14" />
+          进入人工复核
         </Button>
-        <Button
-          variant="outline"
-          class="flex-1"
-          @click="() => emit('close')"
-        >
-          关闭
-        </Button>
+        <div v-else class="flex items-center gap-2 rounded-lg border border-emerald-300/15 bg-emerald-300/[0.06] px-3 py-2 text-xs font-medium text-emerald-300">
+          <SafeIcon name="BadgeCheck" :size="15" />
+          处置闭环已完成
+        </div>
       </SheetFooter>
     </SheetContent>
   </Sheet>

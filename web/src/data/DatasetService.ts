@@ -3,9 +3,9 @@ import type { DatasetData, DatasetFilterKey } from './DatasetData'
 export interface DatasetVO extends DatasetData {}
 
 export const datasetDataList: DatasetData[] = [
-  { id: 'dataset-001', name: '实时巡检数据集', code: 'DS-001', description: '用于任务执行与风险分析的实时巡检数据。', sourceType: 'gis', status: 'ready', createdAt: '2026-02-10T00:00:00Z', updatedAt: '2026-05-01T00:00:00Z' },
-  { id: 'dataset-002', name: '历史风险数据集', code: 'DS-002', description: '用于回放与对比的历史风险样本。', sourceType: 'manual', status: 'ready', createdAt: '2026-02-11T00:00:00Z', updatedAt: '2026-05-01T00:00:00Z' },
-  { id: 'dataset-003', name: '传感器汇聚数据集', code: 'DS-003', description: '来自水位计与泵站传感器的汇总数据。', sourceType: 'sensor', status: 'syncing', createdAt: '2026-02-12T00:00:00Z', updatedAt: '2026-05-02T00:00:00Z' }
+  { id: 'dataset-001', name: '正射影像场景集', code: 'DS-001', description: '用于候选区域定位、纹理识别和风险叠加展示。', sourceType: 'gis', status: 'ready', createdAt: '2026-02-10T00:00:00Z', updatedAt: '2026-05-01T00:00:00Z' },
+  { id: 'dataset-002', name: '点云与几何特征集', code: 'DS-002', description: '用于高程、坡度、形态和空间关系证据计算。', sourceType: 'manual', status: 'ready', createdAt: '2026-02-11T00:00:00Z', updatedAt: '2026-05-01T00:00:00Z' },
+  { id: 'dataset-003', name: '前后时相影像集', code: 'DS-003', description: '用于岸线变化检测和变化掩膜生成。', sourceType: 'gis', status: 'syncing', createdAt: '2026-02-12T00:00:00Z', updatedAt: '2026-05-02T00:00:00Z' }
 ]
 
 export function getAll(): DatasetData[] {

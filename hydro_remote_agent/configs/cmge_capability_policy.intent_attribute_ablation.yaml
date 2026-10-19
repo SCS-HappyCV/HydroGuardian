@@ -1,0 +1,12 @@
+schema_version: "cmge.capability_policy.v1"
+policy_id: "cmge_attribute_intent_ptv3_ablation_v1"
+rules:
+  - rule_id: "attribute_language_call_to_ptv3"
+    enabled: true
+    source_tool: "language_guided_point_segmentation"
+    target_tool: "point_semantic_segmentation"
+    intents:
+      - "attribute_segmentation"
+    evidence:
+      purpose: "intent-only ablation"
+      policy_selection_role: false

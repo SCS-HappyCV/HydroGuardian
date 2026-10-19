@@ -1,0 +1,49 @@
+{
+  "backbone_config": "hydro_remote_agent/configs/backbone_qwen3_vl_8b.json",
+  "output_dir": "runs/hydro_remote_agent/qwen3_vl_8b_lora_v1",
+  "data": {
+    "train_file": "hydro_remote_agent/data/vague_hydro_sft_v2/train_curriculum_16360.jsonl",
+    "eval_file": "hydro_remote_agent/data/vague_hydro_sft_v2/val_sft.jsonl",
+    "max_eval_samples": 128,
+    "max_image_pixels": 262144,
+    "max_length": 16384,
+    "image_source_root": "/workspace/HydroGuardian/benchmark/10M",
+    "image_cache_root": "/tmp/vague_hydro_cache/wcs10m"
+  },
+  "runtime": {
+    "model_cache_path": "/tmp/vague_hydro_cache/model/Qwen3-VL-8B-Instruct"
+  },
+  "lora": {
+    "rank": 16,
+    "alpha": 32,
+    "dropout": 0.05,
+    "target_modules": [
+      "q_proj",
+      "k_proj",
+      "v_proj",
+      "o_proj",
+      "gate_proj",
+      "up_proj",
+      "down_proj"
+    ]
+  },
+  "training": {
+    "per_device_train_batch_size": 2,
+    "per_device_eval_batch_size": 1,
+    "gradient_accumulation_steps": 8,
+    "learning_rate": 0.0002,
+    "num_train_epochs": 1.0,
+    "warmup_ratio": 0.03,
+    "lr_scheduler_type": "cosine",
+    "weight_decay": 0.01,
+    "max_grad_norm": 1.0,
+    "logging_steps": 5,
+    "eval_strategy": "steps",
+    "eval_steps": 250,
+    "save_steps": 100,
+    "save_total_limit": 3,
+    "dataloader_num_workers": 0,
+    "seed": 20260731,
+    "resume_from_checkpoint": null
+  }
+}

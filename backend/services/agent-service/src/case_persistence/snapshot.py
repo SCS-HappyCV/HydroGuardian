@@ -5,6 +5,7 @@ from __future__ import annotations
 
 from typing import Any, Dict
 
+from .visualization import build_visualization_snapshot
 from scene_samples import summarize_scene_sample
 from state import AgentState
 
@@ -67,6 +68,7 @@ def build_agent_result_snapshot(state: AgentState) -> Dict[str, Any]:
         "raw_executor_summary": _summarize_raw_executor_output(state.get("raw_executor_output") or {}),
         "evidence_pack": evidence_pack,
         "change_pack": state.get("change_pack") or {},
+        "visualization": build_visualization_snapshot(state),
         "risk_cards": state.get("risk_cards") or [],
         "recommendation_cards": state.get("recommendation_cards") or [],
         "work_orders": state.get("work_orders") or [],

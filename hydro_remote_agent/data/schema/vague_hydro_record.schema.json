@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hydro-remote-agent.local/schemas/vague-hydro-record-v1.json",
+  "title": "VagueHydro canonical training record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "query_id",
+    "sample_id",
+    "split",
+    "language",
+    "ambiguity_level",
+    "query",
+    "canonical_intent",
+    "output_granularity",
+    "gold_request",
+    "supervision",
+    "provenance"
+  ],
+  "properties": {
+    "schema_version": {"const": "vague_hydro.canonical.v1"},
+    "query_id": {"type": "string", "minLength": 1},
+    "sample_id": {"type": "string", "minLength": 1},
+    "split": {"enum": ["train", "val", "test"]},
+    "language": {"enum": ["en", "zh"]},
+    "ambiguity_level": {"enum": ["source", "L0", "L1", "L2", "L3"]},
+    "query": {"type": "string", "minLength": 1},
+    "canonical_intent": {"type": "string", "minLength": 1},
+    "output_granularity": {
+      "enum": [
+        "text",
+        "class_set",
+        "point_mask",
+        "point_labels",
+        "change_mask",
+        "geometry_report"
+      ]
+    },
+    "gold_request": {"type": "object"},
+    "supervision": {"type": "object"},
+    "provenance": {"type": "object"}
+  }
+}

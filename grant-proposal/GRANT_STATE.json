@@ -1,0 +1,10 @@
+{
+  "phase": 1,
+  "grant_type": "NSFC-style competition document",
+  "grant_subtype": "General Program narrative",
+  "language": "Chinese",
+  "gap_statement": "面向水利工程巡查中风险目标稀疏、观测模态异构、任务语义隐含且工程判据强约束的特点，现有遥感视觉语言模型与工具型地理空间Agent尚缺乏从自然语言意图到多模态专家协同、从算法产物到可验证风险证据的统一机理，导致多步推理中的空间、时间与物理一致性难以保持，结果可信度也无法沿业务链传递。本项目拟研究工程约束驱动的任务—专家—证据动态耦合机制与验证反馈机制，使智能体在开放巡查任务中形成可校验、可溯源、可转化的风险认知。",
+  "aims_count": 3,
+  "status": "in_progress",
+  "timestamp": "2026-08-08T17:00:00+08:00"
+}

@@ -1,0 +1,14 @@
+{
+  "schema_version": "1.0",
+  "request_id": "demo_clarify_01",
+  "intent": "change_detection",
+  "action": {
+    "type": "clarification",
+    "question": "请提供同一区域配准后的前时相影像。",
+    "missing_fields": ["before_image_path"]
+  },
+  "expected_output": {
+    "type": "text",
+    "coordinate_space": "none"
+  }
+}

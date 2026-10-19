@@ -1,4 +1,4 @@
-// 运行模式工具：统一管理前端 mock/api/hybrid 数据模式，方便比赛现场快速切换。
+// 运行模式工具：统一管理前端 mock/api/hybrid 数据模式和服务降级策略。
 
 export type DataMode = 'mock' | 'api' | 'hybrid'
 
@@ -9,10 +9,10 @@ export function isDataMode(value: string | null | undefined): value is DataMode 
   return value === 'mock' || value === 'api' || value === 'hybrid'
 }
 
-// 获取环境变量配置的数据模式；未配置时默认 mock，避免无后端环境打开页面直接失败。
+// 获取环境变量配置的数据模式；未配置时默认连接真实 Agent。
 export function getEnvDataMode(): DataMode {
   const mode = import.meta.env.VITE_DATA_MODE
-  return isDataMode(mode) ? mode : 'mock'
+  return isDataMode(mode) ? mode : 'api'
 }
 
 // 从 localStorage 读取用户最近选择的数据模式。

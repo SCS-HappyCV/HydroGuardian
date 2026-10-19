@@ -139,6 +139,15 @@ export default defineConfig({
   },
   compressHTML: false,
   vite: {
+    server: {
+      proxy: {
+        '/hydro-api': {
+          target: 'http://172.16.224.4:18080',
+          changeOrigin: true,
+          rewrite: (requestPath) => requestPath.replace(/^\/hydro-api/, ''),
+        },
+      },
+    },
     resolve: {
       alias: {
         '@': srcAliasPath,

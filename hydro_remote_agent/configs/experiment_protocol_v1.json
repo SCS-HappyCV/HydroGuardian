@@ -1,0 +1,572 @@
+{
+  "schema_version": "vague_hydro.experiment_protocol.v1",
+  "protocol_id": "wcs10m_primary_agent_v1",
+  "frozen_at": "2026-08-03",
+  "seed": 20260710,
+  "split": {
+    "name": "wcs10m_primary",
+    "local_root": "E:/paper/idea-3/splits/wcs10m_primary",
+    "remote_root": "/data/wcs10m/splits/wcs10m_primary",
+    "partitions": {
+      "train": {
+        "samples": 1145,
+        "sha256": "7374e447bfdbac540b12273fbf93b0d9ba12b01142834d4ab0c728ecd51e2ab7"
+      },
+      "val": {
+        "samples": 246,
+        "sha256": "e097c0e6d5e57f9f1b44e88a421d3800e5175e10cd683ab28d70a02930fb5cac"
+      },
+      "test": {
+        "samples": 245,
+        "sha256": "794a6b85326997e0665e8c02b9b4296254b9710928c597ffa592b872b6314005"
+      }
+    }
+  },
+  "claims": {
+    "C1": "Capability-aware Agent routing improves structured planning over an untuned backbone.",
+    "C2": "Traceable execution reliably converts vague water-domain requests into verifiable expert outputs.",
+    "C3": "The six-expert system covers direct answers, single tools, and composed workflows on the fixed WCS10M split."
+  },
+  "runs": [
+    {
+      "run_id": "routing_baseline_240",
+      "claim_ids": ["C1"],
+      "kind": "routing",
+      "role": "formal_baseline",
+      "expected_count": 240,
+      "report": "runs/hydro_remote_agent/agent_eval_v1/baseline_routing_report_240.json",
+      "metric_paths": [
+        "metrics.parse_rate",
+        "metrics.schema_valid_rate",
+        "metrics.action_type_accuracy",
+        "metrics.tool_selection_accuracy",
+        "metrics.argument_slot_f1",
+        "metrics.workflow_graph_accuracy",
+        "metrics.request_exact_match"
+      ]
+    },
+    {
+      "run_id": "routing_adapter_240",
+      "claim_ids": ["C1"],
+      "kind": "routing",
+      "role": "formal_method",
+      "expected_count": 240,
+      "report": "runs/hydro_remote_agent/agent_eval_v1/adapter_routing_report_240.json",
+      "metric_paths": [
+        "metrics.parse_rate",
+        "metrics.schema_valid_rate",
+        "metrics.action_type_accuracy",
+        "metrics.tool_selection_accuracy",
+        "metrics.argument_slot_f1",
+        "metrics.workflow_graph_accuracy",
+        "metrics.request_exact_match"
+      ]
+    },
+    {
+      "run_id": "execution_agent_240",
+      "claim_ids": ["C2", "C3"],
+      "kind": "execution",
+      "role": "formal_method",
+      "expected_count": 240,
+      "report": "runs/hydro_remote_agent/agent_execution_eval_v1/execution_report_complete_calibrated_240.json",
+      "metric_paths": [
+        "input_count",
+        "planner_succeeded_count",
+        "real_expert_attempted_count",
+        "real_expert_succeeded_count",
+        "real_expert_success_rate",
+        "verifier_success_rate",
+        "terminal_artifact_existence_rate",
+        "mock_skipped_count"
+      ]
+    },
+    {
+      "run_id": "routing_zero_shot_smoke_24",
+      "claim_ids": [],
+      "kind": "routing",
+      "role": "supplemental_smoke",
+      "expected_count": 24,
+      "report": "runs/hydro_remote_agent/qwen3_vl_zero_shot/routing_report_24.json",
+      "metric_paths": ["metrics.request_exact_match", "metrics.tool_selection_accuracy"]
+    },
+    {
+      "run_id": "routing_lora_smoke_24",
+      "claim_ids": [],
+      "kind": "routing",
+      "role": "supplemental_smoke",
+      "expected_count": 24,
+      "report": "runs/hydro_remote_agent/qwen3_vl_lora_eval/routing_report_24.json",
+      "metric_paths": ["metrics.request_exact_match", "metrics.tool_selection_accuracy"]
+    },
+    {
+      "run_id": "point_segmentation_test_245",
+      "claim_ids": ["C3"],
+      "kind": "expert_quality",
+      "role": "formal_method",
+      "expected_count": 245,
+      "report": "runs/hydro_remote_agent/expert_quality_v1/point_semantic_segmentation/report.json",
+      "metric_paths": ["metrics.mean_iou", "metrics.overall_accuracy", "metrics.mean_latency_ms"]
+    },
+    {
+      "run_id": "language_guided_quality_uncalibrated_1903",
+      "claim_ids": ["C3"],
+      "kind": "expert_quality",
+      "role": "formal_baseline",
+      "expected_count": 1903,
+      "report": "runs/hydro_remote_agent/expert_quality_v1/language_guided_final_best_v1/report.json",
+      "metric_paths": [
+        "overall.macro_iou",
+        "overall.micro_iou",
+        "overall.macro_dice",
+        "overall.abstention_accuracy",
+        "overall.no_target_recall",
+        "overall.mean_latency_ms",
+        "overall.failure_rate",
+        "by_task_type.class.macro_iou",
+        "by_task_type.attribute.macro_iou",
+        "by_task_type.relation.macro_iou"
+      ]
+    },
+    {
+      "run_id": "language_guided_quality_1903",
+      "claim_ids": ["C3"],
+      "kind": "expert_quality",
+      "role": "formal_method",
+      "expected_count": 1903,
+      "report": "runs/hydro_remote_agent/expert_quality_v1/language_guided_final_best_calibrated_v2/report.json",
+      "metric_paths": [
+        "overall.macro_iou",
+        "overall.micro_iou",
+        "overall.macro_dice",
+        "overall.abstention_accuracy",
+        "overall.no_target_precision",
+        "overall.no_target_recall",
+        "overall.no_target_f1",
+        "overall.mean_latency_ms",
+        "overall.failure_rate",
+        "by_task_type.class.macro_iou",
+        "by_task_type.attribute.macro_iou",
+        "by_task_type.relation.macro_iou",
+        "by_task_type.no_target.macro_iou"
+      ]
+    },
+    {
+      "run_id": "language_guided_execution_uncalibrated_50",
+      "claim_ids": ["C2", "C3"],
+      "kind": "execution_completion",
+      "role": "formal_baseline",
+      "expected_count": 50,
+      "report": "runs/hydro_remote_agent/language_execution_rerun_v1/execution_report.json",
+      "metric_paths": [
+        "real_expert_success_rate",
+        "verifier_success_rate",
+        "terminal_artifact_existence_rate",
+        "mock_skipped_count"
+      ]
+    },
+    {
+      "run_id": "language_guided_execution_50",
+      "claim_ids": ["C2", "C3"],
+      "kind": "execution_completion",
+      "role": "formal_method",
+      "expected_count": 50,
+      "report": "runs/hydro_remote_agent/language_execution_rerun_calibrated_v2/execution_report.json",
+      "metric_paths": [
+        "real_expert_success_rate",
+        "verifier_success_rate",
+        "terminal_artifact_existence_rate",
+        "mock_skipped_count"
+      ]
+    },
+    {
+      "run_id": "planner_ablation_no_tool_descriptions_240",
+      "claim_ids": ["C1"],
+      "kind": "routing_ablation",
+      "role": "formal_ablation",
+      "expected_count": 240,
+      "report": "runs/hydro_remote_agent/planner_ablations_v1/no_tool_descriptions/routing_report_240.json",
+      "metric_paths": ["metrics.tool_selection_accuracy", "metrics.argument_slot_f1", "metrics.workflow_graph_accuracy", "metrics.request_exact_match"]
+    },
+    {
+      "run_id": "planner_ablation_no_request_examples_240",
+      "claim_ids": ["C1"],
+      "kind": "routing_ablation",
+      "role": "formal_ablation",
+      "expected_count": 240,
+      "report": "runs/hydro_remote_agent/planner_ablations_v1/no_request_examples/routing_report_240.json",
+      "metric_paths": ["metrics.tool_selection_accuracy", "metrics.argument_slot_f1", "metrics.workflow_graph_accuracy", "metrics.request_exact_match"]
+    },
+    {
+      "run_id": "planner_ablation_no_workflow_example_240",
+      "claim_ids": ["C1"],
+      "kind": "routing_ablation",
+      "role": "formal_ablation",
+      "expected_count": 240,
+      "report": "runs/hydro_remote_agent/planner_ablations_v1/no_workflow_example/routing_report_240.json",
+      "metric_paths": ["metrics.tool_selection_accuracy", "metrics.argument_slot_f1", "metrics.workflow_graph_accuracy", "metrics.request_exact_match"]
+    },
+    {
+      "run_id": "system_ablation_no_verifier_240",
+      "claim_ids": ["C2"],
+      "kind": "execution_ablation",
+      "role": "formal_ablation",
+      "expected_count": 240,
+      "report": "runs/hydro_remote_agent/system_ablations_v1/no_verifier/report.json",
+      "metric_paths": [
+        "metrics.task_success_rate",
+        "metrics.expert_request_success_rate",
+        "metrics.verification_coverage_rate",
+        "metrics.mean_duration_ms",
+        "ablation.affected_request_count",
+        "ablation.removed_verifier_count",
+        "ablation.removed_verifier_duration_ms",
+        "terminal_artifact_existence_rate"
+      ]
+    },
+    {
+      "run_id": "system_ablation_no_workflow_240",
+      "claim_ids": ["C2", "C3"],
+      "kind": "execution_ablation",
+      "role": "formal_ablation",
+      "expected_count": 240,
+      "report": "runs/hydro_remote_agent/system_ablations_v1/no_workflow/report.json",
+      "metric_paths": [
+        "metrics.task_success_rate",
+        "metrics.expert_request_success_rate",
+        "metrics.workflow_success_rate",
+        "metrics.verification_coverage_rate",
+        "ablation.affected_request_count",
+        "terminal_artifact_existence_rate"
+      ]
+    },
+    {
+      "run_id": "system_ablation_no_language_expert_240",
+      "claim_ids": ["C2", "C3"],
+      "kind": "execution_ablation",
+      "role": "formal_ablation",
+      "expected_count": 240,
+      "report": "runs/hydro_remote_agent/system_ablations_v1/no_language_expert/report.json",
+      "metric_paths": [
+        "metrics.task_success_rate",
+        "metrics.expert_request_success_rate",
+        "metrics.language_request_success_rate",
+        "metrics.verification_coverage_rate",
+        "ablation.affected_request_count",
+        "terminal_artifact_existence_rate"
+      ]
+    },
+    {
+      "run_id": "agent_multi_baseline_v1_240",
+      "claim_ids": ["C1"],
+      "kind": "routing_multi_baseline",
+      "role": "formal_baseline_comparison",
+      "expected_count": 240,
+      "report": "runs/hydro_remote_agent/agent_multi_baseline_v1/comparison_report.json",
+      "metric_paths": [
+        "condition_count",
+        "conditions.rule_router.metrics.action_type_accuracy",
+        "conditions.backbone_minimal.metrics.action_type_accuracy",
+        "conditions.backbone_full.metrics.action_type_accuracy",
+        "conditions.backbone_react_style.metrics.action_type_accuracy",
+        "conditions.vaguehydro_lora.metrics.action_type_accuracy",
+        "conditions.vaguehydro_lora.metrics.request_exact_match"
+      ]
+    },
+    {
+      "run_id": "agent_e2e_comparison_v2_240",
+      "claim_ids": ["C1", "C2", "C3"],
+      "kind": "full_population_e2e_baseline_comparison",
+      "role": "formal_baseline_comparison",
+      "expected_count": 240,
+      "report": "runs/hydro_remote_agent/agent_task_aware_e2e_240/comparison_report.json",
+      "metric_paths": [
+        "condition_count",
+        "conditions.tool_observation_react.request_count",
+        "conditions.tool_observation_react.routing_exact_rate",
+        "conditions.tool_observation_react.execution_success_rate",
+        "conditions.glm46v_flash_toolspec.request_count",
+        "conditions.glm46v_flash_toolspec.execution_success_rate",
+        "conditions.deepseek_vl2_small_schema_constrained.request_count",
+        "conditions.deepseek_vl2_small_schema_constrained.execution_success_rate",
+        "conditions.deepseek_vl2_small_schema_constrained.verified_e2e_correct_rate",
+        "conditions.vaguehydro_lora.request_count",
+        "conditions.vaguehydro_lora.routing_exact_rate",
+        "conditions.vaguehydro_lora.execution_success_rate",
+        "conditions.vaguehydro_lora.verified_e2e_correct_rate",
+        "conditions.oracle_gold_routing.request_count",
+        "conditions.oracle_gold_routing.verified_e2e_correct_rate",
+        "paired_significance_by_baseline.tool_observation_react.verified_e2e_correct.delta",
+        "paired_significance_by_baseline.glm46v_flash_toolspec.verified_e2e_correct.delta",
+        "paired_significance_by_baseline.deepseek_vl2_small_schema_constrained.verified_e2e_correct.delta"
+      ]
+    },
+    {
+      "run_id": "agent_task_aware_e2e_v2_240",
+      "claim_ids": ["C2", "C3"],
+      "kind": "full_population_task_aware_e2e_quality",
+      "role": "formal_method_comparison",
+      "expected_count": 240,
+      "report": "runs/hydro_remote_agent/agent_task_aware_e2e_240/task_aware_quality_v1/report.json",
+      "metric_paths": [
+        "condition_count",
+        "conditions.tool_observation_react.overall.output_availability_rate",
+        "conditions.tool_observation_react.overall.mean_per_request_task_score",
+        "conditions.glm46v_flash_toolspec.overall.output_availability_rate",
+        "conditions.glm46v_flash_toolspec.overall.mean_per_request_task_score",
+        "conditions.deepseek_vl2_small_schema_constrained.overall.output_availability_rate",
+        "conditions.deepseek_vl2_small_schema_constrained.overall.mean_per_request_task_score",
+        "conditions.vaguehydro_lora.overall.output_availability_rate",
+        "conditions.vaguehydro_lora.overall.mean_per_request_task_score",
+        "conditions.vaguehydro_lora.overall.direct_answer.accuracy",
+        "conditions.vaguehydro_lora.overall.binary_mask.macro_iou",
+        "conditions.vaguehydro_lora.overall.binary_mask.no_target_f1",
+        "conditions.oracle_gold_routing.overall.mean_per_request_task_score",
+        "paired_comparisons_by_baseline.tool_observation_react.mean_per_request_task_score.delta",
+        "paired_comparisons_by_baseline.tool_observation_react.mean_per_request_task_score.lower",
+        "paired_comparisons_by_baseline.tool_observation_react.mean_per_request_task_score.upper",
+        "paired_comparisons_by_baseline.glm46v_flash_toolspec.mean_per_request_task_score.delta",
+        "paired_comparisons_by_baseline.glm46v_flash_toolspec.mean_per_request_task_score.lower",
+        "paired_comparisons_by_baseline.glm46v_flash_toolspec.mean_per_request_task_score.upper",
+        "paired_comparisons_by_baseline.deepseek_vl2_small_schema_constrained.mean_per_request_task_score.delta",
+        "paired_comparisons_by_baseline.deepseek_vl2_small_schema_constrained.mean_per_request_task_score.lower",
+        "paired_comparisons_by_baseline.deepseek_vl2_small_schema_constrained.mean_per_request_task_score.upper"
+      ]
+    },
+    {
+      "run_id": "agent_e2e_comparison_v1_50",
+      "claim_ids": ["C1", "C2", "C3"],
+      "kind": "e2e_baseline_comparison",
+      "role": "formal_baseline_comparison",
+      "expected_count": 50,
+      "report": "runs/hydro_remote_agent/agent_e2e_comparison_v1/comparison_report.json",
+      "metric_paths": [
+        "conditions.tool_observation_react.request_count",
+        "conditions.tool_observation_react.routing_exact_rate",
+        "conditions.tool_observation_react.execution_success_rate",
+        "conditions.tool_observation_react.verified_e2e_correct_rate",
+        "conditions.vaguehydro_lora.request_count",
+        "conditions.vaguehydro_lora.routing_exact_rate",
+        "conditions.vaguehydro_lora.execution_success_rate",
+        "conditions.vaguehydro_lora.verified_e2e_correct_rate",
+        "paired_significance.verified_e2e_correct.delta",
+        "paired_significance.verified_e2e_correct.mcnemar_exact.p_value_two_sided"
+      ]
+    },
+    {
+      "run_id": "agent_task_aware_e2e_v1_50",
+      "claim_ids": ["C2", "C3"],
+      "kind": "task_aware_e2e_quality",
+      "role": "formal_method_comparison",
+      "expected_count": 50,
+      "report": "runs/hydro_remote_agent/agent_e2e_comparison_v1/task_aware_quality_v1/report.json",
+      "metric_paths": [
+        "conditions.tool_observation_react.overall.output_availability_rate",
+        "conditions.tool_observation_react.overall.mean_per_request_task_score",
+        "conditions.tool_observation_react.overall.binary_mask.macro_iou",
+        "conditions.vaguehydro_lora.overall.output_availability_rate",
+        "conditions.vaguehydro_lora.overall.mean_per_request_task_score",
+        "conditions.vaguehydro_lora.overall.direct_answer.accuracy",
+        "conditions.vaguehydro_lora.overall.binary_mask.macro_iou",
+        "conditions.vaguehydro_lora.overall.binary_mask.no_target_f1",
+        "paired_comparison.mean_per_request_task_score.delta",
+        "paired_comparison.mean_per_request_task_score.lower",
+        "paired_comparison.mean_per_request_task_score.upper"
+      ]
+    },
+    {
+      "run_id": "external_agent_comparison_v1_50",
+      "claim_ids": ["C1", "C2", "C3"],
+      "kind": "external_e2e_baseline_comparison",
+      "role": "formal_external_baseline_comparison",
+      "expected_count": 50,
+      "report": "runs/hydro_remote_agent/external_baselines_v1/comparison_report.json",
+      "metric_paths": [
+        "condition_count",
+        "conditions.tool_observation_react.request_count",
+        "conditions.glm46v_flash_toolspec.request_count",
+        "conditions.glm46v_flash_toolspec.routing_exact_rate",
+        "conditions.glm46v_flash_toolspec.execution_success_rate",
+        "conditions.glm46v_flash_toolspec.verified_e2e_correct_rate",
+        "conditions.vaguehydro_lora.request_count",
+        "conditions.vaguehydro_lora.verified_e2e_correct_rate",
+        "paired_significance_by_baseline.glm46v_flash_toolspec.verified_e2e_correct.delta",
+        "paired_significance_by_baseline.glm46v_flash_toolspec.verified_e2e_correct.mcnemar_exact.p_value_two_sided"
+      ]
+    },
+    {
+      "run_id": "external_agent_task_aware_v1_50",
+      "claim_ids": ["C2", "C3"],
+      "kind": "external_task_aware_e2e_quality",
+      "role": "formal_external_method_comparison",
+      "expected_count": 50,
+      "report": "runs/hydro_remote_agent/external_baselines_v1/task_aware_quality_v1/report.json",
+      "metric_paths": [
+        "condition_count",
+        "conditions.glm46v_flash_toolspec.overall.output_availability_rate",
+        "conditions.glm46v_flash_toolspec.overall.mean_per_request_task_score",
+        "conditions.glm46v_flash_toolspec.overall.direct_answer.accuracy",
+        "conditions.glm46v_flash_toolspec.overall.binary_mask.macro_iou",
+        "conditions.glm46v_flash_toolspec.overall.binary_mask.no_target_f1",
+        "conditions.vaguehydro_lora.overall.mean_per_request_task_score",
+        "paired_comparisons_by_baseline.glm46v_flash_toolspec.mean_per_request_task_score.delta",
+        "paired_comparisons_by_baseline.glm46v_flash_toolspec.mean_per_request_task_score.lower",
+        "paired_comparisons_by_baseline.glm46v_flash_toolspec.mean_per_request_task_score.upper"
+      ]
+    },
+    {
+      "run_id": "external_agent_comparison_v2_50",
+      "claim_ids": ["C1", "C2", "C3"],
+      "kind": "multi_family_external_e2e_baseline_comparison",
+      "role": "formal_external_baseline_comparison",
+      "expected_count": 50,
+      "report": "runs/hydro_remote_agent/external_agent_comparison_v2/comparison_report.json",
+      "metric_paths": [
+        "condition_count",
+        "conditions.deepseek_vl2_small_toolspec.request_count",
+        "conditions.deepseek_vl2_small_toolspec.routing_exact_rate",
+        "conditions.deepseek_vl2_small_toolspec.execution_success_rate",
+        "conditions.deepseek_vl2_small_toolspec.verified_e2e_correct_rate",
+        "conditions.vaguehydro_lora.verified_e2e_correct_rate",
+        "paired_significance_by_baseline.deepseek_vl2_small_toolspec.verified_e2e_correct.delta",
+        "paired_significance_by_baseline.deepseek_vl2_small_toolspec.verified_e2e_correct.mcnemar_exact.p_value_two_sided"
+      ]
+    },
+    {
+      "run_id": "external_agent_task_aware_v2_50",
+      "claim_ids": ["C2", "C3"],
+      "kind": "multi_family_external_task_aware_e2e_quality",
+      "role": "formal_external_method_comparison",
+      "expected_count": 50,
+      "report": "runs/hydro_remote_agent/external_agent_comparison_v2/task_aware_quality_v1/report.json",
+      "metric_paths": [
+        "condition_count",
+        "conditions.deepseek_vl2_small_toolspec.overall.output_availability_rate",
+        "conditions.deepseek_vl2_small_toolspec.overall.mean_per_request_task_score",
+        "conditions.deepseek_vl2_small_toolspec.overall.direct_answer.accuracy",
+        "conditions.deepseek_vl2_small_toolspec.overall.binary_mask.macro_iou",
+        "conditions.deepseek_vl2_small_toolspec.overall.binary_mask.no_target_f1",
+        "conditions.vaguehydro_lora.overall.mean_per_request_task_score",
+        "paired_comparisons_by_baseline.deepseek_vl2_small_toolspec.mean_per_request_task_score.delta",
+        "paired_comparisons_by_baseline.deepseek_vl2_small_toolspec.mean_per_request_task_score.lower",
+        "paired_comparisons_by_baseline.deepseek_vl2_small_toolspec.mean_per_request_task_score.upper"
+      ]
+    },
+    {
+      "run_id": "external_agent_comparison_v3_50",
+      "claim_ids": ["C1", "C2", "C3"],
+      "kind": "schema_constrained_external_e2e_ablation",
+      "role": "formal_external_ablation_comparison",
+      "expected_count": 50,
+      "report": "runs/hydro_remote_agent/external_agent_comparison_v3/comparison_report.json",
+      "metric_paths": [
+        "condition_count",
+        "conditions.deepseek_vl2_small_toolspec.request_count",
+        "conditions.deepseek_vl2_small_toolspec.execution_success_rate",
+        "conditions.deepseek_vl2_small_schema_constrained.request_count",
+        "conditions.deepseek_vl2_small_schema_constrained.routing_exact_rate",
+        "conditions.deepseek_vl2_small_schema_constrained.execution_success_rate",
+        "conditions.deepseek_vl2_small_schema_constrained.verified_e2e_correct_rate",
+        "conditions.vaguehydro_lora.verified_e2e_correct_rate",
+        "paired_significance_by_baseline.deepseek_vl2_small_schema_constrained.execution_succeeded.delta",
+        "paired_significance_by_baseline.deepseek_vl2_small_schema_constrained.execution_succeeded.mcnemar_exact.p_value_two_sided"
+      ]
+    },
+    {
+      "run_id": "external_agent_task_aware_v3_50",
+      "claim_ids": ["C2", "C3"],
+      "kind": "schema_constrained_external_task_aware_ablation",
+      "role": "formal_external_ablation_comparison",
+      "expected_count": 50,
+      "report": "runs/hydro_remote_agent/external_agent_comparison_v3/task_aware_quality_v1/report.json",
+      "metric_paths": [
+        "condition_count",
+        "conditions.deepseek_vl2_small_toolspec.overall.mean_per_request_task_score",
+        "conditions.deepseek_vl2_small_schema_constrained.overall.output_availability_rate",
+        "conditions.deepseek_vl2_small_schema_constrained.overall.mean_per_request_task_score",
+        "conditions.deepseek_vl2_small_schema_constrained.overall.direct_answer.accuracy",
+        "conditions.deepseek_vl2_small_schema_constrained.overall.binary_mask.available_count",
+        "conditions.deepseek_vl2_small_schema_constrained.overall.binary_mask.macro_iou",
+        "conditions.vaguehydro_lora.overall.mean_per_request_task_score",
+        "paired_comparisons_by_baseline.deepseek_vl2_small_schema_constrained.mean_per_request_task_score.delta",
+        "paired_comparisons_by_baseline.deepseek_vl2_small_schema_constrained.mean_per_request_task_score.lower",
+        "paired_comparisons_by_baseline.deepseek_vl2_small_schema_constrained.mean_per_request_task_score.upper"
+      ]
+    },
+    {
+      "run_id": "deepseek_schema_constraint_ablation_50",
+      "claim_ids": [],
+      "kind": "external_format_constraint_ablation",
+      "role": "formal_ablation",
+      "expected_count": 50,
+      "report": "runs/hydro_remote_agent/external_agent_comparison_v3/schema_ablation_v1/task_aware_quality_v1/report.json",
+      "metric_paths": [
+        "condition_count",
+        "conditions.deepseek_vl2_small_toolspec.overall.mean_per_request_task_score",
+        "conditions.deepseek_vl2_small_schema_constrained.overall.execution_success_rate",
+        "conditions.deepseek_vl2_small_schema_constrained.overall.output_availability_rate",
+        "conditions.deepseek_vl2_small_schema_constrained.overall.mean_per_request_task_score",
+        "conditions.deepseek_vl2_small_schema_constrained.overall.direct_answer.accuracy",
+        "conditions.deepseek_vl2_small_schema_constrained.overall.binary_mask.available_count",
+        "paired_comparisons_by_baseline.deepseek_vl2_small_toolspec.mean_per_request_task_score.delta",
+        "paired_comparisons_by_baseline.deepseek_vl2_small_toolspec.mean_per_request_task_score.lower",
+        "paired_comparisons_by_baseline.deepseek_vl2_small_toolspec.mean_per_request_task_score.upper"
+      ]
+    },
+    {
+      "run_id": "oracle_gold_routing_v1_50",
+      "claim_ids": ["C1", "C2", "C3"],
+      "kind": "gold_policy_execution_reference",
+      "role": "formal_oracle_reference",
+      "expected_count": 50,
+      "report": "runs/hydro_remote_agent/oracle_gold_routing_v1/comparison_report.json",
+      "metric_paths": [
+        "condition_count",
+        "conditions.oracle_gold_routing.request_count",
+        "conditions.oracle_gold_routing.routing_exact_rate",
+        "conditions.oracle_gold_routing.execution_success_rate",
+        "conditions.oracle_gold_routing.verifier_acceptance_rate",
+        "conditions.oracle_gold_routing.verified_e2e_correct_rate",
+        "conditions.oracle_gold_routing.expert_invocation_count",
+        "paired_significance_by_baseline.vaguehydro_lora.verified_e2e_correct.delta"
+      ]
+    },
+    {
+      "run_id": "oracle_gold_routing_task_aware_v1_50",
+      "claim_ids": ["C2", "C3"],
+      "kind": "gold_policy_task_aware_reference",
+      "role": "formal_oracle_reference",
+      "expected_count": 50,
+      "report": "runs/hydro_remote_agent/oracle_gold_routing_v1/task_aware_quality_v1/report.json",
+      "metric_paths": [
+        "condition_count",
+        "conditions.oracle_gold_routing.overall.output_availability_rate",
+        "conditions.oracle_gold_routing.overall.mean_per_request_task_score",
+        "conditions.oracle_gold_routing.overall.direct_answer.accuracy",
+        "conditions.oracle_gold_routing.overall.binary_mask.macro_iou",
+        "conditions.oracle_gold_routing.overall.binary_mask.no_target_f1",
+        "conditions.oracle_gold_routing.overall.full_scene.macro_miou",
+        "paired_comparisons_by_baseline.vaguehydro_lora.mean_per_request_task_score.delta",
+        "paired_comparisons_by_baseline.vaguehydro_lora.mean_per_request_task_score.lower",
+        "paired_comparisons_by_baseline.vaguehydro_lora.mean_per_request_task_score.upper"
+      ]
+    },
+    {
+      "run_id": "service_reliability_stable1_clean_22",
+      "claim_ids": ["C2"],
+      "kind": "service_reliability",
+      "role": "formal_method",
+      "expected_count": 22,
+      "report": "runs/hydro_remote_agent/service_reliability_v1/stable1_clean/report.json",
+      "metric_paths": ["metrics.terminal_rate", "metrics.health_latency.p95_ms", "metrics.submission_latency.p95_ms", "metrics.end_to_end_latency.p95_ms"]
+    },
+    {
+      "run_id": "service_reliability_overload4_22",
+      "claim_ids": ["C2"],
+      "kind": "service_reliability",
+      "role": "formal_stress",
+      "expected_count": 22,
+      "report": "runs/hydro_remote_agent/service_reliability_v1/overload4/report.json",
+      "metric_paths": ["metrics.terminal_rate", "metrics.health_latency.p95_ms", "metrics.submission_latency.p95_ms", "metrics.end_to_end_latency.p95_ms"]
+    }
+  ]
+}

@@ -3,8 +3,8 @@ import type { TemplateData, TemplateFilterKey } from './TemplateData'
 export interface TemplateVO extends TemplateData {}
 
 export const templateDataList: TemplateData[] = [
-  { id: 'tpl-a01', name: '高风险处置模板', type: 'dispatch', applicableRiskLevels: ['high'], content: '立即派单并要求 2 小时内反馈处置结果。', callCount: 18, isEnabled: true, createdAt: '2026-03-02T00:00:00Z', updatedAt: '2026-05-15T00:00:00Z' },
-  { id: 'tpl-a02', name: '中风险复核模板', type: 'review', applicableRiskLevels: ['medium', 'review_required'], content: '补充证据并在 24 小时内完成复核。', callCount: 22, isEnabled: true, createdAt: '2026-03-04T00:00:00Z', updatedAt: '2026-05-14T00:00:00Z' },
+  { id: 'tpl-a01', name: '高风险现场核查模板', type: 'dispatch', applicableRiskLevels: ['high'], content: '携带风险定位和多模态证据派发现场核查，要求 2 小时内反馈。', callCount: 18, isEnabled: true, createdAt: '2026-03-02T00:00:00Z', updatedAt: '2026-05-15T00:00:00Z' },
+  { id: 'tpl-a02', name: '低置信证据复核模板', type: 'review', applicableRiskLevels: ['medium', 'review_required'], content: '补充现场影像或高程证据，并在 24 小时内完成复核。', callCount: 22, isEnabled: true, createdAt: '2026-03-04T00:00:00Z', updatedAt: '2026-05-14T00:00:00Z' },
   { id: 'tpl-a03', name: '低风险观察模板', type: 'dispatch', applicableRiskLevels: ['low'], content: '持续观察并记录变化趋势，无需立即处置。', callCount: 11, isEnabled: true, createdAt: '2026-03-08T00:00:00Z', updatedAt: '2026-05-10T00:00:00Z' },
   { id: 'tpl-a04', name: '闭环复盘模板', type: 'review', applicableRiskLevels: ['high', 'medium', 'low'], content: '整理处理过程、复核意见与后续建议。', callCount: 7, isEnabled: false, createdAt: '2026-03-12T00:00:00Z', updatedAt: '2026-05-01T00:00:00Z' }
 ]

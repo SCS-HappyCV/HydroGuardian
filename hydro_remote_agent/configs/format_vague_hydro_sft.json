@@ -1,0 +1,10 @@
+{
+  "input_dir": "hydro_remote_agent/data/vague_hydro_generated",
+  "output_dir": "hydro_remote_agent/data/vague_hydro_sft",
+  "source_manifest": "hydro_remote_agent/data/vague_hydro/source_manifest.jsonl",
+  "registry": "hydro_remote_agent/configs/tool_registry.yaml",
+  "ontology": "hydro_remote_agent/data/schema/ontology.json",
+  "path_map": [
+    "/data/wcs10m=/workspace/HydroGuardian/benchmark/10M"
+  ]
+}

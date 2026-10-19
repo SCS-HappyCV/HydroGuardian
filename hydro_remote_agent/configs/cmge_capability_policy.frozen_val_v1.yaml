@@ -1,0 +1,18 @@
+schema_version: cmge.capability_policy.v1
+policy_id: cmge_language_call_ptv3_frozen_val_v1
+rules:
+- rule_id: language_call_to_ptv3
+  enabled: true
+  source_tool: language_guided_point_segmentation
+  target_tool: point_semantic_segmentation
+  intents: []
+  evidence:
+    calibration_split: val
+    calibration_compound_count: 60
+    overall_iou_gain: 0.2903094545196163
+    subgroup_iou_gains:
+      attribute_segmentation: 0.21395224237256644
+      class_segmentation: 0.36666666666666664
+    complete_correctness_gain: 0.38333333333333336
+    freeze_report: runs\cmge_planner_v1\capability_calibration_val_v1\policy_freeze_report.json
+    test_results_consulted: false

@@ -1,6 +1,6 @@
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import * as TaskService from '@/data/TaskService'
 import * as TaskResultService from '@/data/TaskResultService'
 import * as RiskEventService from '@/data/RiskEventService'
@@ -13,10 +13,17 @@ import HistoryComparisonModal from './HistoryComparisonModal.vue'
 import { Button } from '@/components/ui/button'
 import { toast } from 'vue-sonner'
 import SafeIcon from '@/components/common/SafeIcon.vue'
+import CompetitionCaseReplay from './CompetitionCaseReplay.vue'
+import { usePresentationMode } from '@/lib/presentation-mode'
+import { remoteAgentApi } from '@/api/remote-agent-api'
+import { mapRemoteTask, restoreRemoteTaskBinding } from '@/lib/remote-task-history'
+
+const { isCompetitionMode, initializePresentationMode } = usePresentationMode()
 
 const isClient = ref(true)
 
 const allTasks = ref(TaskService.getAll())
+const remoteTaskIds = ref(new Set<string>())
 const selectedTaskIds = ref<Set<string>>(new Set())
 const showComparisonModal = ref(false)
 
@@ -106,6 +113,10 @@ const handleCompare = () => {
 }
 
 const handleTaskRowClick = (taskId: string) => {
+  if (remoteTaskIds.value.has(taskId)) {
+    window.location.href = `./task-execution-monitor.html?taskId=${encodeURIComponent(taskId)}`
+    return
+  }
   window.location.href = `./history-playback.html?taskId=${taskId}`
 }
 
@@ -115,15 +126,30 @@ const handleFilterChange = (newFilters: typeof filters.value) => {
 }
 
 onMounted(() => {
+  initializePresentationMode()
   isClient.value = false
-  requestAnimationFrame(() => {
+  requestAnimationFrame(async () => {
+    if (!isCompetitionMode.value) {
+      try {
+        const remoteTasks = await remoteAgentApi.listTasks({ limit: '500' })
+        remoteTasks.forEach(restoreRemoteTaskBinding)
+        remoteTaskIds.value = new Set(remoteTasks.map((task) => task.task_id))
+        const mapped = remoteTasks.map(mapRemoteTask)
+        const remoteIds = remoteTaskIds.value
+        allTasks.value = [...mapped, ...TaskService.getAll().filter((task) => !remoteIds.has(task.id))]
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : '历史任务同步失败')
+      }
+    }
     isClient.value = true
   })
 })
 </script>
 
 <template>
-  <div class="flex flex-col min-h-screen bg-background">
+  <CompetitionCaseReplay v-if="isCompetitionMode" />
+
+  <div v-else class="flex flex-col min-h-screen bg-background">
     <PageHeader 
       title="历史回放与对比"
       subtitle="查看历史任务执行记录，支持多维度筛选和结果对比"

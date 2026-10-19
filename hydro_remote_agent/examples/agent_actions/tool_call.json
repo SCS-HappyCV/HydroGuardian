@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0",
+  "request_id": "demo_segment_01",
+  "intent": "semantic_segmentation",
+  "action": {
+    "type": "tool_call",
+    "tool": "multimodal_semantic_segmentation",
+    "arguments": {
+      "image_path": "tile.png",
+      "point_cloud_path": "tile.txt",
+      "target_class_ids": [4, 13]
+    },
+    "verification": "auto"
+  },
+  "expected_output": {
+    "type": "point_labels",
+    "coordinate_space": "source_point_cloud"
+  }
+}

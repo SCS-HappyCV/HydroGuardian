@@ -1,0 +1,30 @@
+schema_version: "1.0"
+work_dir: "../runs/expert_runtime_pointcept_ptv3"
+experts:
+  point_semantic_segmentation:
+    backend: pointcept_ptv3_inference
+    enabled: true
+    checkpoint_path: "/opt/pointcept/exp/wcs10m/R007_ptv3_pointonly_fp32_resume/model/model_best.pth"
+    config_path: "/opt/pointcept/exp/wcs10m/R007_ptv3_pointonly_fp32_resume/config.py"
+    vendor_root: "/opt/pointcept"
+    python_paths:
+      - "/opt/hydrocoda"
+    prediction_cache_dir: "/opt/pointcept/exp/wcs10m/R007_ptv3_pointonly_fp32_resume/result"
+    cache_labels_zero_based: true
+    device: "cuda:0"
+    split: "test"
+  multimodal_semantic_segmentation:
+    backend: mock
+    enabled: false
+  image_change_detection:
+    backend: mock
+    enabled: false
+  language_guided_point_segmentation:
+    backend: mock
+    enabled: false
+  geometry_relation_analysis:
+    backend: mock
+    enabled: false
+  result_quality_verification:
+    backend: mock
+    enabled: false

@@ -1,0 +1,13 @@
+FROM pytorch/pytorch:2.6.0-cuda12.4-cudnn9-runtime
+
+WORKDIR /app
+ENV PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=/app
+
+COPY hydro_remote_agent/deploy/requirements-agent.txt /tmp/requirements.txt
+RUN pip install --no-cache-dir -r /tmp/requirements.txt
+
+COPY hydro_remote_agent /app/hydro_remote_agent
+RUN chmod +x /app/hydro_remote_agent/deploy/run-agent.sh
+
+EXPOSE 18080
+ENTRYPOINT ["/app/hydro_remote_agent/deploy/run-agent.sh"]

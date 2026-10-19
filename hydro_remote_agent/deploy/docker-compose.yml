@@ -1,0 +1,183 @@
+name: hydro-remote-agent
+
+services:
+  agent:
+    build:
+      context: ../../
+      dockerfile: hydro_remote_agent/deploy/Dockerfile.agent
+    image: hydro-remote-agent:local
+    restart: unless-stopped
+    environment:
+      AGENT_STATE_DIR: /data/agent_state
+      AGENT_RUN_API: "true"
+      AGENT_RUN_PLANNER: "false"
+      AGENT_RUN_EXECUTOR: "true"
+      EXPERT_OUTPUT_DIR: /data/expert_outputs
+      EXPERT_BASE_URL: http://127.0.0.1:18080
+      EXPERT_TIMEOUT_SECONDS: ${EXPERT_TIMEOUT_SECONDS:-1800}
+      WORKER_SECRET: ${WORKER_SECRET:?Set WORKER_SECRET in .env}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-hydro}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@postgres:5432/${POSTGRES_DB:-hydro_agent}
+      MINIO_ENDPOINT: minio:9000
+      MINIO_PUBLIC_ENDPOINT: ${MINIO_PUBLIC_ENDPOINT:-agent.example.internal:9000}
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:?Set MINIO_ROOT_USER in .env}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:?Set MINIO_ROOT_PASSWORD in .env}
+      MINIO_SECURE: "false"
+      REDIS_URL: redis://redis:6379/0
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-hydro}:${RABBITMQ_PASSWORD:?Set RABBITMQ_PASSWORD in .env}@rabbitmq:5672/
+      REDIS_TTL_SECONDS: ${REDIS_TTL_SECONDS:-45}
+      HF_HUB_OFFLINE: "1"
+      TRANSFORMERS_OFFLINE: "1"
+    ports:
+      - "${AGENT_API_PORT:-18080}:18080"
+    volumes:
+      - agent-state:/data/agent_state
+      - expert-outputs:/data/expert_outputs
+      - ${ASSET_DIR:?Set ASSET_DIR in .env}:/data/assets:ro
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:18080/healthz', timeout=5)"]
+      interval: 15s
+      timeout: 8s
+      retries: 10
+      start_period: 60s
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  planner:
+    profiles: ["planner"]
+    build:
+      context: ../../
+      dockerfile: hydro_remote_agent/deploy/Dockerfile.agent
+    image: hydro-remote-agent:local
+    restart: unless-stopped
+    environment:
+      AGENT_STATE_DIR: /data/agent_state
+      AGENT_RUN_API: "false"
+      AGENT_RUN_PLANNER: "true"
+      AGENT_RUN_EXECUTOR: "false"
+      DATABASE_URL: postgresql://${POSTGRES_USER:-hydro}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@postgres:5432/${POSTGRES_DB:-hydro_agent}
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-hydro}:${RABBITMQ_PASSWORD:?Set RABBITMQ_PASSWORD in .env}@rabbitmq:5672/
+      PLANNER_MODEL_PATH: /models/planner
+      PLANNER_ADAPTER_PATH: /models/planner_adapter
+      PLANNER_MAX_IMAGE_PIXELS: ${PLANNER_MAX_IMAGE_PIXELS:-262144}
+      HF_HUB_OFFLINE: "1"
+      TRANSFORMERS_OFFLINE: "1"
+    volumes:
+      - agent-state:/data/agent_state
+      - ${PLANNER_MODEL_DIR:-./models/planner}:/models/planner:ro
+      - ${PLANNER_ADAPTER_DIR:-./models/planner_adapter}:/models/planner_adapter:ro
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ["${PLANNER_GPU_ID:-0}"]
+              capabilities: [gpu]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-hydro}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-hydro_agent}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-hydro} -d ${POSTGRES_DB:-hydro_agent}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  minio:
+    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?Set MINIO_ROOT_USER in .env}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?Set MINIO_ROOT_PASSWORD in .env}
+    ports:
+      - "${MINIO_API_PORT:-9000}:9000"
+      - "127.0.0.1:${MINIO_CONSOLE_PORT:-9001}:9001"
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  minio-init:
+    image: minio/mc:RELEASE.2025-04-16T18-13-26Z
+    restart: "no"
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?Set MINIO_ROOT_USER in .env}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?Set MINIO_ROOT_PASSWORD in .env}
+      MINIO_WORKER_USER: ${MINIO_WORKER_USER:?Set MINIO_WORKER_USER in .env}
+      MINIO_WORKER_PASSWORD: ${MINIO_WORKER_PASSWORD:?Set MINIO_WORKER_PASSWORD in .env}
+    volumes:
+      - ./minio-worker-policy.json:/config/minio-worker-policy.json:ro
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - >-
+        mc alias set local http://minio:9000 "$${MINIO_ROOT_USER}" "$${MINIO_ROOT_PASSWORD}" &&
+        mc mb --ignore-existing local/hydro-input local/hydro-output local/hydro-intermediate local/hydro-models &&
+        mc admin policy create local hydro-worker /config/minio-worker-policy.json || true &&
+        mc admin user add local "$${MINIO_WORKER_USER}" "$${MINIO_WORKER_PASSWORD}" || true &&
+        mc admin policy attach local hydro-worker --user "$${MINIO_WORKER_USER}"
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-hydro}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?Set RABBITMQ_PASSWORD in .env}
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: 10.253.21.0/24
+
+volumes:
+  agent-state:
+  expert-outputs:
+  postgres-data:
+  minio-data:
+  redis-data:
+  rabbitmq-data:

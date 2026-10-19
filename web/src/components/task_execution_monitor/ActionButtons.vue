@@ -4,11 +4,13 @@ import { Button } from '@/components/ui/button'
 import SafeIcon from '@/components/common/SafeIcon.vue'
 
 defineProps<{
-  status: 'queued' | 'running' | 'success' | 'failed'
+  status: string
   isRunning: boolean
   isSuccess: boolean
   isFailed: boolean
   isQueued: boolean
+  canViewResults?: boolean
+  canExportReport?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -17,6 +19,7 @@ const emit = defineEmits<{
   (e: 'modify-params'): void
   (e: 'view-results'): void
   (e: 'view-system-health'): void
+  (e: 'export-report'): void
 }>()
 </script>
 
@@ -38,14 +41,19 @@ const emit = defineEmits<{
 
     <template v-else-if="isSuccess">
       <Button
+        v-if="canViewResults !== false"
         class="gap-2 bg-[hsl(var(--success))] hover:bg-[hsl(var(--success))]/90 text-white"
         @click="emit('view-results')"
       >
         <SafeIcon name="Eye" :size="16" />
         查看风险结果
       </Button>
+      <Button v-if="canExportReport" variant="outline" class="gap-2" @click="emit('export-report')">
+        <SafeIcon name="FileCheck2" :size="16" />
+        生成审计报告
+      </Button>
       <p class="text-xs text-muted-foreground">
-        任务执行成功，可查看生成的风险分析结果。
+        {{ canViewResults === false ? '真实专家执行完成，结果产物可在证据产物流中下载。' : '任务执行成功，可查看生成的风险分析结果。' }}
       </p>
     </template>
 
@@ -79,6 +87,10 @@ const emit = defineEmits<{
     </template>
 
     <template v-else-if="isQueued">
+      <Button variant="destructive" class="gap-2" @click="emit('stop')">
+        <SafeIcon name="Square" :size="16" />
+        取消任务
+      </Button>
       <Button
         variant="outline"
         class="gap-2"
@@ -88,8 +100,26 @@ const emit = defineEmits<{
         修改参数
       </Button>
       <p class="text-xs text-muted-foreground">
-        任务已加入队列，等待执行资源释放。
+        任务已提交，Planner 将在资源可用后生成执行路径。
       </p>
+    </template>
+
+    <template v-else-if="status === 'blocked'">
+      <Button class="gap-2" @click="emit('retry')"><SafeIcon name="RotateCcw" :size="16" />能力恢复后重试</Button>
+      <Button variant="outline" class="gap-2" @click="emit('modify-params')"><SafeIcon name="Edit2" :size="16" />调整任务</Button>
+      <Button variant="ghost" class="gap-2" @click="emit('view-system-health')"><SafeIcon name="ServerCog" :size="16" />查看专家状态</Button>
+      <p class="text-xs text-muted-foreground">执行路径已保留，所需专家能力当前不可用。</p>
+    </template>
+
+    <template v-else-if="status === 'cancelled'">
+      <Button class="gap-2" @click="emit('retry')"><SafeIcon name="RotateCcw" :size="16" />重新提交</Button>
+      <Button variant="outline" class="gap-2" @click="emit('modify-params')"><SafeIcon name="Edit2" :size="16" />调整任务</Button>
+      <p class="text-xs text-muted-foreground">任务已取消，已生成的证据产物仍然保留。</p>
+    </template>
+
+    <template v-else-if="status === 'clarification_required' || status === 'abstained'">
+      <Button class="gap-2" @click="emit('modify-params')"><SafeIcon name="MessageSquareMore" :size="16" />补充任务信息</Button>
+      <p class="text-xs text-muted-foreground">Agent 未强行执行，请补充数据或调整任务描述后重新提交。</p>
     </template>
   </div>
 </template>

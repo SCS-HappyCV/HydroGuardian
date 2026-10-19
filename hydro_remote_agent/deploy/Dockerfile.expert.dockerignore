@@ -1,0 +1,16 @@
+**
+!hydro_remote_agent/
+!hydro_remote_agent/**
+!hydro_program3d/
+!hydro_program3d/**
+!wcs_unified/
+!wcs_unified/**
+hydro_remote_agent/checkpoints/**
+hydro_remote_agent/runs/**
+hydro_remote_agent/data/**
+hydro_remote_agent/**/__pycache__/**
+hydro_remote_agent/**/*.pyc
+hydro_program3d/**/__pycache__/**
+hydro_program3d/**/*.pyc
+wcs_unified/**/__pycache__/**
+wcs_unified/**/*.pyc

@@ -1,0 +1,28 @@
+{
+  "schema_version": "vaguehydro_r.m1_config.v1",
+  "seed": 20261001,
+  "train": "hydro_remote_agent/data/vague_hydro_sft_v2/train_curriculum_16360.jsonl",
+  "valid": "hydro_remote_agent/data/vague_hydro_sft_v2/val_sft.jsonl",
+  "frozen_test": "runs/hydro_remote_agent/agent_eval_v1/gold_240.jsonl",
+  "tool_registry": "hydro_remote_agent/configs/tool_registry.yaml",
+  "output_dir": "runs/hydro_remote_agent/vaguehydro_r_m1_v1",
+  "rollout": {
+    "train_samples": 50,
+    "valid_samples": 50,
+    "candidates_per_sample": 3
+  },
+  "reward_weights": {
+    "schema": 0.2,
+    "action": 0.2,
+    "tool": 0.2,
+    "argument": 0.2,
+    "workflow": 0.15,
+    "stop": 0.05
+  },
+  "constraints": {
+    "call_real_experts": false,
+    "call_verifier": false,
+    "start_grpo": false,
+    "exclude_frozen_test_ids": true
+  }
+}

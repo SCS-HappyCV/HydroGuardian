@@ -1,0 +1,53 @@
+schema_version: "1.0"
+
+ssh:
+  host: "gpu.example.internal"
+  port: 30753
+  username_env: "HYDRO_REMOTE_SSH_USER"
+  password_env: "HYDRO_REMOTE_SSH_PASSWORD"
+
+remote:
+  gufnet_root: "/workspace/HydroGuardian/hydro_remote_agent/vendor/gufnet"
+  gufnet_python: "python"
+  gufnet_checkpoint: "/workspace/HydroGuardian/hydro_remote_agent/checkpoints/gufnet/epoch=242-step=16766.ckpt"
+  gufnet_config: "/workspace/HydroGuardian/hydro_remote_agent/vendor/gufnet/config/wcs2d3d_baseline_DLGC_PUAF_GATA_CMF4.yaml"
+  change_detection_root: "/workspace/HydroGuardian/hydro_remote_agent/vendor/change_detection"
+  change_detection_checkpoint: "/workspace/HydroGuardian/hydro_remote_agent/checkpoints/change_detection/best_model.pth"
+  split_root: "/data/wcs10m/splits/wcs10m_primary"
+  dataset_root: "/data/wcs10m"
+  point_cache_root: "/data/wcs10m/pointcept_pth/samples"
+  agent_root: "/workspace/HydroGuardian/hydro_remote_agent"
+
+gpu:
+  selection: "most_free_memory"
+  visible_devices_env: "CUDA_VISIBLE_DEVICES"
+  minimum_free_memory_gb: 20
+
+dataset_split:
+  train: 1145
+  val: 246
+  test: 245
+  label_space: "raw_1_to_15"
+
+path_mappings:
+  - source: "/data/wcs10m"
+    target: "/data/wcs10m"
+  - source: "E:/dataset/point-image-text/10M"
+    target: "/data/wcs10m"
+
+experts:
+  point_semantic_segmentation:
+    implementation: "gufnet_3d_inference"
+    code_root: "/workspace/HydroGuardian/hydro_remote_agent/vendor/gufnet"
+    checkpoint: "/workspace/HydroGuardian/hydro_remote_agent/checkpoints/gufnet/epoch=242-step=16766.ckpt"
+    python: "python"
+  image_change_detection:
+    implementation: "rfanet_change_detection"
+    code_root: "/workspace/HydroGuardian/hydro_remote_agent/vendor/change_detection"
+    checkpoint: "/workspace/HydroGuardian/hydro_remote_agent/checkpoints/change_detection/best_model.pth"
+    python: "python"
+    input_size: 256
+  result_quality_verification:
+    implementation: "deterministic_quality_verification"
+    code_root: "/workspace/HydroGuardian/hydro_remote_agent/runtime"
+    python: "python"

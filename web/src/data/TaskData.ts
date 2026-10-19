@@ -13,6 +13,11 @@ export interface TaskData {
   finishedAt?: string
   createdByUserId: string
   updatedAt: string
+  remoteJobId?: string
+  riskCount?: number
+  workorderCount?: number
+  artifactCount?: number
+  stepCount?: number
 }
 
 export type TaskFilterKey = keyof Pick<TaskData, 'zoneId' | 'templateId' | 'priority' | 'status' | 'createdByUserId'>

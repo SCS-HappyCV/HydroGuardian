@@ -1,0 +1,79 @@
+{
+  "schema_version": "vague_hydro.external_agent_comparison.v3",
+  "protocol_id": "external_agent_comparison_v3_50",
+  "status": "frozen",
+  "gold": {
+    "path": "runs/hydro_remote_agent/agent_e2e_comparison_v1/gold_50.jsonl",
+    "sha256": "23a29fdba37029992b641561244bc7b3d7ca590217ab0cba06ba437963696463",
+    "count": 50,
+    "action_counts": {
+      "direct_answer": 10,
+      "tool_call": 20,
+      "workflow": 20
+    },
+    "language_counts": {
+      "en": 25,
+      "zh": 25
+    },
+    "unique_sample_count": 50
+  },
+  "conditions": [
+    {
+      "id": "tool_observation_react",
+      "role": "internal_strong_baseline",
+      "reuse_frozen_run": true
+    },
+    {
+      "id": "glm46v_flash_toolspec",
+      "role": "independent_external_vlm_baseline",
+      "model_id": "zai-org/GLM-4.6V-Flash",
+      "reuse_frozen_run": true,
+      "training_on_vaguehydro": false
+    },
+    {
+      "id": "deepseek_vl2_small_toolspec",
+      "role": "independent_external_vlm_baseline",
+      "model_id": "deepseek-ai/deepseek-vl2-small",
+      "reuse_frozen_run": true,
+      "training_on_vaguehydro": false
+    },
+    {
+      "id": "deepseek_vl2_small_schema_constrained",
+      "role": "format_constrained_external_vlm_ablation",
+      "model_id": "deepseek-ai/deepseek-vl2-small",
+      "model_revision": "6033e16432a1d771cf9fe4a6f894ff5e5e1459af",
+      "implementation_revision": "ef9f91e2b6426536b83294c11742c27be66361b1",
+      "constraint_backend": "lm-format-enforcer==0.10.12",
+      "constraint_mode": "token_level_agent_request_json_schema",
+      "max_new_tokens": 512,
+      "post_generation_repair": false,
+      "training_on_vaguehydro": false
+    },
+    {
+      "id": "vaguehydro_lora",
+      "role": "proposed_method",
+      "reuse_frozen_run": true
+    }
+  ],
+  "fairness": {
+    "same_gold_population": true,
+    "same_tool_registry": true,
+    "same_real_expert_service": true,
+    "same_executor": true,
+    "same_strict_agent_validator": true,
+    "same_task_aware_scorer": true,
+    "same_max_image_pixels": 262144,
+    "deterministic_decoding": true,
+    "model_load_excluded_from_latency": true,
+    "ground_truth_and_metadata_hidden_from_planner": true,
+    "schema_condition_changes_format_decoding_only": true,
+    "schema_condition_does_not_select_action_or_tool": true,
+    "schema_condition_has_no_post_generation_repair": true
+  },
+  "statistics": {
+    "reference_condition": "vaguehydro_lora",
+    "paired_bootstrap_samples": 10000,
+    "e2e_binary_test": "McNemar exact two-sided",
+    "task_quality_interval": "paired bootstrap 95% CI"
+  }
+}

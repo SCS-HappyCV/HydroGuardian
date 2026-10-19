@@ -1,0 +1,24 @@
+schema_version: "1.0"
+work_dir: "../runs/expert_runtime_gufnet_baseline_2d"
+experts:
+  point_semantic_segmentation:
+    backend: gufnet_3d_inference
+    enabled: true
+    checkpoint_path: "../checkpoints/gufnet_baseline_2d/last.ckpt"
+    config_path: "../vendor/gufnet/config/wcs2d3d_baseline_2D.yaml"
+    vendor_root: "../vendor/gufnet"
+    device: "cuda:0"
+    max_chunk_points: 100000
+    min_chunk_points: 12500
+  image_change_detection:
+    backend: mock
+    enabled: false
+  language_guided_point_segmentation:
+    backend: mock
+    enabled: false
+  geometry_relation_analysis:
+    backend: mock
+    enabled: false
+  result_quality_verification:
+    backend: mock
+    enabled: false

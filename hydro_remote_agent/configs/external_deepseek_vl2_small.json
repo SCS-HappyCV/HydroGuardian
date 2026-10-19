@@ -1,0 +1,25 @@
+{
+  "schema_version": "vague_hydro.external_agent_baseline.v1",
+  "condition": "deepseek_vl2_small_toolspec",
+  "family": "deepseek_vl2",
+  "model_id": "deepseek-ai/deepseek-vl2-small",
+  "revision": "6033e16432a1d771cf9fe4a6f894ff5e5e1459af",
+  "implementation_revision": "ef9f91e2b6426536b83294c11742c27be66361b1",
+  "source": "HuggingFace official repository via hf-mirror.com",
+  "local_path": "/models/deepseek-vl2-small",
+  "dtype": "bfloat16",
+  "trust_remote_code": true,
+  "max_new_tokens": 1024,
+  "max_image_pixels": 262144,
+  "enable_thinking": false,
+  "decoding": {
+    "do_sample": false
+  },
+  "protocol": {
+    "gold_count": 50,
+    "prompt_profile": "full",
+    "real_experts": true,
+    "model_load_excluded_from_latency": true,
+    "ground_truth_access": false
+  }
+}

@@ -283,13 +283,152 @@ export interface UpdateWorkOrderStatusRequestData {
   closureNote?: string
 }
 
+export interface AgentResultCaseData {
+  caseId: string
+  title: string
+  taskText: string
+  sceneId: string
+  status: string
+  riskLevel: string
+  assignee: string
+  tags: unknown
+  createdAt: string
+}
+
+export interface AgentVisualizationBBoxPixelData {
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
+export interface AgentVisualizationPointData {
+  x: number
+  y: number
+}
+
+export interface AgentVisualizationOrthoData {
+  schemaVersion?: string
+  sourceFile?: Partial<FileAssetData>
+  originalWidth?: number
+  originalHeight?: number
+  displayWidth?: number
+  displayHeight?: number
+  coordinateMode?: string
+  projectionStatus?: string
+  projectionWarning?: string
+}
+
+export interface AgentRiskOverlayData {
+  overlayId?: string
+  regionId?: string
+  label?: string
+  riskCardId?: string
+  riskType?: string
+  riskLevel?: string
+  riskScore?: number
+  reviewRequired?: boolean
+  candidateScore?: number
+  support?: number
+  pointCount?: number
+  bboxPixel?: AgentVisualizationBBoxPixelData
+  polygonPixel?: AgentVisualizationPointData[]
+  bbox3d?: unknown
+  centroid?: number[]
+  summary?: string
+  color?: string
+  projectionMode?: string
+  projectionConfidence?: string
+}
+
+export interface AgentEvidenceMetricsData {
+  schemaVersion?: string
+  status?: string
+  targetHit?: boolean
+  decisionKind?: string
+  reviewRequired?: boolean
+  confidence?: number
+  confidenceComponents?: Record<string, number>
+  selectedCandidateIdx?: number | null
+  selectedCandidateScore?: number
+  selectedCandidatePosterior?: number
+  selectedCandidateIsNoTarget?: boolean
+  selectedVerifierScore?: number
+  posteriorNoTargetMass?: number
+  abstainProbability?: number
+  selectedMaskMass?: number
+  selectedMaskPeak?: number
+  maskSelectionMode?: string
+  candidateRegionCount?: number
+  evidenceSummary?: string[]
+}
+
+export interface AgentChangeComparisonData {
+  schemaVersion?: string
+  status?: string
+  changeType?: string
+  changeScore?: number | null
+  changeSummary?: string
+  reviewRequired?: boolean
+  preImage?: Partial<FileAssetData>
+  postImage?: Partial<FileAssetData>
+  changeMask?: Partial<FileAssetData>
+  canCompare?: boolean
+  maskAvailable?: boolean
+  alignmentStatus?: string
+}
+
+export interface AgentPointCloudVisualizationData {
+  schemaVersion?: string
+  sourceFile?: Partial<FileAssetData>
+  sceneSampleFile?: Partial<FileAssetData>
+  coordinateMode?: string
+  pointCountOriginal?: number
+  pointCountSampled?: number
+  hasRgb?: boolean
+  geometryFeatureNames?: string[]
+  geometryCellSize?: number
+  normalization?: Record<string, unknown>
+  boundsNormalized?: unknown
+  renderHint?: Record<string, unknown>
+  segments?: unknown[]
+  selectedRegionId?: string
+}
+
+export interface AgentVisualizationData {
+  schemaVersion?: string
+  available?: boolean
+  sceneId?: string
+  sampleId?: string
+  assetRoles?: string[]
+  ortho?: AgentVisualizationOrthoData
+  riskOverlays?: AgentRiskOverlayData[]
+  evidenceMetrics?: AgentEvidenceMetricsData
+  changeComparison?: AgentChangeComparisonData
+  pointCloud?: AgentPointCloudVisualizationData
+  sceneQuality?: Record<string, unknown>
+}
+
 export interface AgentResultSnapshotData {
   schemaVersion?: string
+  caseId?: string
+  caseStatus?: string
+  caseRiskLevel?: string
+  caseTitle?: string
+  caseAssignee?: string
+  caseCreatedAt?: string
+  taskId?: string
+  taskText?: string
+  sceneId?: string
+  sampleId?: string
+  status?: string
+  case?: AgentResultCaseData
   taskIntent?: unknown
   programBundle?: unknown
   selectedProgram?: unknown
   evidencePack?: unknown
   changePack?: unknown
+  visualization?: AgentVisualizationData
   riskCards?: unknown[]
   recommendationCards?: unknown[]
   workOrders?: unknown[]

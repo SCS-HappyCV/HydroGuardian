@@ -1,0 +1,27 @@
+* text=auto
+
+*.sh text eol=lf
+*.py text eol=lf
+*.js text eol=lf
+*.ts text eol=lf
+*.vue text eol=lf
+*.astro text eol=lf
+*.java text eol=lf
+*.xml text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
+*.json text eol=lf
+*.md text eol=lf
+
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.pdf binary
+*.docx binary
+*.pptx binary
+*.las binary
+*.tif binary
+*.tiff binary
+*.npy binary
+*.npz binary

@@ -1,0 +1,118 @@
+{
+  "schema_version": "vague_hydro.task_aware_e2e_protocol.v1",
+  "protocol_id": "agent_task_aware_e2e_240",
+  "status": "frozen_five_condition_extension",
+  "gold": {
+    "path": "runs/hydro_remote_agent/agent_eval_v1/gold_240.jsonl",
+    "sha256": "58c9c016d129c014179cd717739d48ef0e2c0017e1ad37e3374c246b13882b67",
+    "count": 240,
+    "unique_sample_count": 240,
+    "action_counts": {
+      "direct_answer": 80,
+      "tool_call": 80,
+      "workflow": 80
+    },
+    "language_counts": {
+      "en": 120,
+      "zh": 120
+    },
+    "ambiguity_counts": {
+      "L0": 60,
+      "L1": 60,
+      "L2": 60,
+      "L3": 60
+    },
+    "task_counts": {
+      "attribute": 75,
+      "class": 41,
+      "full_scene": 8,
+      "no_target": 24,
+      "relation": 92
+    }
+  },
+  "conditions": [
+    {
+      "id": "tool_observation_react",
+      "role": "internal_strong_baseline",
+      "planner": "Qwen3-VL-8B-Instruct",
+      "rounds": 2,
+      "real_experts": true
+    },
+    {
+      "id": "glm46v_flash_toolspec",
+      "role": "independent_external_vlm_baseline",
+      "planner": "zai-org/GLM-4.6V-Flash",
+      "training_on_vaguehydro": false,
+      "real_experts": true
+    },
+    {
+      "id": "deepseek_vl2_small_schema_constrained",
+      "role": "independent_external_vlm_schema_constrained_baseline",
+      "planner": "deepseek-ai/deepseek-vl2-small",
+      "training_on_vaguehydro": false,
+      "constraint_mode": "token_level_agent_request_json_schema",
+      "post_generation_repair": false,
+      "real_experts": true
+    },
+    {
+      "id": "vaguehydro_lora",
+      "role": "proposed_method",
+      "planner": "Qwen3-VL-8B-Instruct + VagueHydro LoRA",
+      "prediction_path": "runs/hydro_remote_agent/agent_eval_v1/adapter_predictions_240.jsonl",
+      "prediction_sha256": "819366e7c6ed92c2abf55163a325cd9d2a4dbc9b968bd464cfb773ac07cec7fd",
+      "execution_path": "runs/hydro_remote_agent/agent_execution_eval_v1/execution_results_complete_calibrated_240.jsonl",
+      "execution_sha256": "869870358788e3c8538b3bd8f6a08360bbac8e5211fe9097104533daf3a43461",
+      "real_experts": true,
+      "reuse_recorded_execution": true
+    },
+    {
+      "id": "oracle_gold_routing",
+      "role": "gold_policy_execution_reference",
+      "planner_executed": false,
+      "real_experts": true
+    }
+  ],
+  "fairness": {
+    "same_gold_population": true,
+    "same_tool_registry": true,
+    "same_real_expert_service": true,
+    "same_executor": true,
+    "same_strict_agent_validator": true,
+    "same_task_aware_scorer": true,
+    "same_max_image_pixels": 262144,
+    "deterministic_decoding": true,
+    "model_load_excluded_from_latency": true,
+    "ground_truth_and_metadata_hidden_from_non_oracle_planners": true,
+    "missing_required_outputs_score_zero": true
+  },
+  "metrics": {
+    "primary": "mean_per_request_task_score",
+    "secondary": [
+      "output_availability_rate",
+      "direct_answer.accuracy",
+      "binary_mask.macro_iou",
+      "binary_mask.macro_dice",
+      "binary_mask.no_target_f1",
+      "full_scene.macro_miou"
+    ],
+    "strata": [
+      "language",
+      "ambiguity_level",
+      "gold_action_type",
+      "task_type",
+      "language_and_level"
+    ]
+  },
+  "statistics": {
+    "reference_condition": "vaguehydro_lora",
+    "paired_bootstrap_samples": 10000,
+    "bootstrap_seed": 20260811,
+    "e2e_binary_test": "McNemar exact two-sided"
+  },
+  "limitations": [
+    "Class, attribute, relation, and no-target masks use dataset-derived proxy ground truth.",
+    "The 240 requests use one fixed WCS10M test split and one fixed planner checkpoint per learned condition.",
+    "The multimodal segmentation Tool currently validates but does not use the image during inference.",
+    "Oracle gold routing is an execution reference, not a mathematical upper bound on task quality."
+  ]
+}

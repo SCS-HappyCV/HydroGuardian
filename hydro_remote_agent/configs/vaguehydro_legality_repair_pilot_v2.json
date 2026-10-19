@@ -1,0 +1,59 @@
+{
+  "schema_version": "vaguehydro.legality_repair_pilot.v2",
+  "run_dir": "runs/hydro_remote_agent/vaguehydro_legality_repair_pilot_v2",
+  "source_preference_run": "runs/hydro_remote_agent/vaguehydro_preference_training_pilot_v1",
+  "tool_registry": "hydro_remote_agent/configs/tool_registry.yaml",
+  "base_model": "/models/Qwen3-VL-8B-Instruct",
+  "initial_sft_adapter": "runs/hydro_remote_agent/qwen3_vl_8b_lora_v1",
+  "seeds": [20261031, 20261032, 20261033],
+  "arms": {
+    "A": {"train": false, "constrained_decoder": false},
+    "B": {"train": false, "constrained_decoder": true},
+    "C": {"train": true, "constrained_decoder": false},
+    "D": {"train": true, "constrained_decoder": true}
+  },
+  "optimization": {
+    "max_optimizer_steps": 6,
+    "checkpoint_step": 3,
+    "gradient_accumulation_steps": 2,
+    "learning_rate": 0.000005,
+    "weight_decay": 0.0,
+    "max_grad_norm": 1.0,
+    "max_length": 4096
+  },
+  "generation": {
+    "do_sample": false,
+    "temperature": 1.0,
+    "top_p": 1.0,
+    "max_new_tokens": 1024,
+    "decoder_max_allowed_tokens": 256,
+    "decoder_scan_top_tokens": 8192
+  },
+  "evaluation": {
+    "heldout_source_count": 6,
+    "m1_validation_count": 8,
+    "reward_a_weights": {"schema": 0.2, "action": 0.2, "tool": 0.2, "argument": 0.2, "workflow": 0.15, "stop": 0.05}
+  },
+  "release_gates": {
+    "heldout_strict_legality_min": 0.8,
+    "m1_strict_legality_min": 0.8,
+    "heldout_reward_a_min": 0.5,
+    "m1_reward_a_min": 0.5,
+    "winning_seed_count_min": 2
+  },
+  "constraints": {
+    "read_frozen_240": false,
+    "forced_completion": false,
+    "posthoc_json_repair": false,
+    "filter_failed_outputs": false,
+    "retry_until_success": false,
+    "call_real_experts": false,
+    "call_verifier": false,
+    "formal_training": false
+  },
+  "v2_change_log": {
+    "from": "vaguehydro_legality_repair_pilot_v1",
+    "change": "increase_generation_budget_only",
+    "reason": "v1 held-out outputs clipped at 512 tokens while gold serialized requests were approximately 986-994 characters"
+  }
+}

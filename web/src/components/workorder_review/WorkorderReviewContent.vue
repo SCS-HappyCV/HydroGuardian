@@ -11,14 +11,20 @@ import { Label } from '@/components/ui/label'
 import SafeIcon from '@/components/common/SafeIcon.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
+import FieldLocationPanel from '@/components/common/FieldLocationPanel.vue'
 import { toast } from 'vue-sonner'
-import type { WorkorderData, WorkorderVO } from '@/data/WorkorderData'
+import type { WorkorderVO } from '@/data/WorkorderService'
 import type { WorkorderReviewData } from '@/data/WorkorderReviewData'
 import type { RiskEventData } from '@/data/RiskEventData'
-import { getByIdVO as getWorkorderByIdVO, getById as getWorkorderById } from '@/data/WorkorderService'
-import { getByOrderIdVO as getReviewByOrderIdVO } from '@/data/WorkorderReviewService'
+import { getByIdVO as getWorkorderByIdVO, update as updateWorkorder } from '@/data/WorkorderService'
+import { getByOrderIdVO as getReviewByOrderIdVO, getAll as getAllReviews, savePersisted as saveReviews } from '@/data/WorkorderReviewService'
 import { getById as getRiskById } from '@/data/RiskEventService'
 import { getById as getUserById } from '@/data/UserService'
+import { appendEvent } from '@/data/WorkorderTimelineService'
+import { getAgentWorkorderContext } from '@/lib/agent-workorder-context'
+import { remoteAgentApi } from '@/api/remote-agent-api'
+import type { RemoteWorkorder } from '@/lib/remote-workorder-types'
+import { mapRemoteReview, mapRemoteRisk, mapRemoteWorkorder } from '@/lib/remote-workorder-mapper'
 
 const isClient = ref(true)
 const orderId = ref<string>('wo-2002')
@@ -29,6 +35,7 @@ const decision = ref<'approved' | 'rejected'>('approved')
 const comment = ref<string>('')
 const evidenceNote = ref<string>('')
 const isSubmitting = ref(false)
+const remoteOrder = ref<RemoteWorkorder | null>(null)
 
 const breadcrumbItems = computed(() => [
   { label: '工单中心', href: './workorder-center.html' },
@@ -53,7 +60,7 @@ const riskLevelColor = computed(() => {
   return levelMap[risk.value.level] || 'primary'
 })
 
-const loadData = () => {
+const loadData = async () => {
   const params = new URLSearchParams(window.location.search)
   const paramOrderId = params.get('orderId')
   
@@ -61,10 +68,29 @@ const loadData = () => {
     orderId.value = paramOrderId
   }
 
+  if (orderId.value.startsWith('wo_')) {
+    try {
+      const order = await remoteAgentApi.getWorkorder(orderId.value)
+      remoteOrder.value = order
+      workorder.value = mapRemoteWorkorder(order)
+      risk.value = mapRemoteRisk(order)
+      const review = mapRemoteReview(order)
+      if (review) {
+        existingReview.value = review
+        decision.value = review.decision
+        comment.value = review.comment
+        evidenceNote.value = review.evidenceNote
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : '复核工单同步失败')
+    }
+    return
+  }
+
   const wo = getWorkorderByIdVO(orderId.value)
   if (wo) {
     workorder.value = wo
-    risk.value = getRiskById(wo.riskId)
+    risk.value = getAgentWorkorderContext(wo)?.risk || getRiskById(wo.riskId) || null
     
     const review = getReviewByOrderIdVO(orderId.value)
     if (review) {
@@ -117,8 +143,18 @@ const handleSubmit = async () => {
   isSubmitting.value = true
 
   try {
-    await new Promise(resolve => setTimeout(resolve, 800))
-
+    if (remoteOrder.value) {
+      await remoteAgentApi.reviewWorkorder(remoteOrder.value.workorder_id, {
+        reviewer_user_id: remoteOrder.value.reviewer_user_id || 'user-004',
+        decision: decision.value,
+        comment: comment.value,
+        evidence_note: evidenceNote.value,
+      })
+      localStorage.removeItem(`workorder_review_draft_${orderId.value}`)
+      toast.success(decision.value === 'approved' ? '复核已通过，工单已完成闭环' : '复核已驳回，工单返回现场核查')
+      window.setTimeout(() => { window.location.href = `./workorder-detail.html?orderId=${encodeURIComponent(orderId.value)}` }, 600)
+      return
+    }
     const reviewData: WorkorderReviewData = {
       id: `wrr-${Date.now()}`,
       orderId: orderId.value,
@@ -129,6 +165,26 @@ const handleSubmit = async () => {
       createdAt: new Date().toISOString()
     }
 
+    const reviews = getAllReviews().filter((item) => item.orderId !== orderId.value)
+    saveReviews([reviewData, ...reviews])
+
+    const nextStatus = decision.value === 'approved' ? 'closed' : 'doing'
+    updateWorkorder(orderId.value, {
+      status: nextStatus,
+      reviewerUserId: reviewData.reviewerUserId,
+      updatedAt: reviewData.createdAt,
+    })
+    appendEvent({
+      id: `wot-${Date.now()}`,
+      orderId: orderId.value,
+      actorUserId: reviewData.reviewerUserId,
+      action: decision.value === 'approved' ? 'closed' : 'reviewed',
+      note: decision.value === 'approved'
+        ? `人工复核通过：${comment.value}`
+        : `人工复核驳回，返回现场核查：${comment.value}`,
+      createdAt: reviewData.createdAt,
+    })
+
     localStorage.removeItem(`workorder_review_draft_${orderId.value}`)
 
     const successMessage = decision.value === 'approved' 
@@ -137,9 +193,9 @@ const handleSubmit = async () => {
     
     toast.success(successMessage)
 
-    setTimeout(() => {
-      window.location.href = './workorder-center.html'
-    }, 1200)
+    window.setTimeout(() => {
+      window.location.href = `./workorder-detail.html?orderId=${encodeURIComponent(orderId.value)}`
+    }, 600)
   } catch (error) {
     console.error('Submit error:', error)
     toast.error('提交失败，请重试')
@@ -154,8 +210,7 @@ const handleBack = () => {
 onMounted(() => {
   isClient.value = false
   requestAnimationFrame(() => {
-    loadData()
-    isClient.value = true
+    loadData().finally(() => { isClient.value = true })
   })
 })
 </script>
@@ -213,6 +268,12 @@ onMounted(() => {
             </div>
           </CardContent>
         </Card>
+
+        <FieldLocationPanel
+          :location="workorder.location || risk.location"
+          title="复核空间位置"
+          :label="risk.title"
+        />
 
         <!-- 工单处理信息 -->
         <Card class="surface-base border-border">

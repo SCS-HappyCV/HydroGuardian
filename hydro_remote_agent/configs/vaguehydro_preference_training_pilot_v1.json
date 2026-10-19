@@ -1,0 +1,63 @@
+{
+  "schema_version": "vaguehydro.preference_training_pilot.v1",
+  "run_dir": "runs/hydro_remote_agent/vaguehydro_preference_training_pilot_v1",
+  "source_preference_manifest": "runs/hydro_remote_agent/vaguehydro_hard_negative_stress_v2/PREFERENCE_DATA_MANIFEST.json",
+  "source_pair_scores": "runs/hydro_remote_agent/vaguehydro_hard_negative_stress_v2/PAIR_SCORES.jsonl",
+  "source_stress_audit": "runs/hydro_remote_agent/vaguehydro_hard_negative_stress_v2/EXPERIMENT_AUDIT.json",
+  "train_source": "hydro_remote_agent/data/vague_hydro_sft_v2/train_curriculum_16360.jsonl",
+  "m1_validation_source": "hydro_remote_agent/data/vague_hydro_sft_v2/val_sft.jsonl",
+  "m1_manifest": "runs/hydro_remote_agent/vaguehydro_r_m1_v1/rl_data_manifest.json",
+  "tool_registry": "hydro_remote_agent/configs/tool_registry.yaml",
+  "base_model": "/models/Qwen3-VL-8B-Instruct",
+  "initial_sft_adapter": "runs/hydro_remote_agent/qwen3_vl_8b_lora_v1",
+  "seeds": [20261021, 20261022, 20261023],
+  "split": {
+    "seed": 20261020,
+    "held_out_workflow_scene_count": 6,
+    "held_out_mutation_families": ["artifact_reference", "dag_link"],
+    "group_key": "source scene parsed from source_id",
+    "cross_cell_policy": "exclude",
+    "m1_validation_count": 8
+  },
+  "optimization": {
+    "max_optimizer_steps": 12,
+    "checkpoint_step": 6,
+    "per_device_train_batch_size": 1,
+    "gradient_accumulation_steps": 4,
+    "learning_rate": 0.000005,
+    "weight_decay": 0.0,
+    "max_grad_norm": 1.0,
+    "warmup_steps": 1,
+    "max_length": 4096,
+    "dpo_beta": 0.1,
+    "dtype": "bfloat16",
+    "optimizer": "adamw_torch"
+  },
+  "evaluation": {
+    "generation_max_new_tokens": 512,
+    "generation_do_sample": false,
+    "pair_margin_normalization": "mean_target_log_probability",
+    "reward_a_weights": {"schema": 0.2, "action": 0.2, "tool": 0.2, "argument": 0.2, "workflow": 0.15, "stop": 0.05},
+    "reward_b": "StructuralContrastRewardV2",
+    "validation_usage": "fixed evaluation only; no tuning, early stopping, reward changes, or candidate filtering"
+  },
+  "release_gates": {
+    "paired_margin_improvement_min": 0.01,
+    "or_pair_accuracy_improvement_min": 0.05,
+    "strict_legality_drop_max": 0.02,
+    "m1_reward_a_drop_max": 0.02,
+    "m1_legality_drop_max": 0.02,
+    "winning_seed_count_min": 2,
+    "checkpoint_hashes_required": true,
+    "all_preflight_checks_required": true
+  },
+  "constraints": {
+    "read_frozen_240": false,
+    "use_validation_for_tuning": false,
+    "posthoc_hyperparameter_changes": false,
+    "result_based_candidate_filtering": false,
+    "formal_training": false,
+    "call_real_experts": false,
+    "call_verifier": false
+  }
+}

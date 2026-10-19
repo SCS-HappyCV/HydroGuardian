@@ -9,6 +9,10 @@ import RiskDistribution from './RiskDistribution.vue'
 import RecentTasksList from './RecentTasksList.vue'
 import RiskHeatmapPreview from './RiskHeatmapPreview.vue'
 import AlertBanner from './AlertBanner.vue'
+import { remoteAgentApi } from '@/api/remote-agent-api'
+import { mapRemoteTask, restoreRemoteTaskBinding } from '@/lib/remote-task-history'
+import { getRemoteAgentSnapshots } from '@/lib/remote-agent-storage'
+import { buildRisksFromAgentSnapshot } from '@/lib/agent-risk-presentation'
 
 const isClient = ref(true)
 
@@ -52,7 +56,18 @@ const recentTasks = computed(() => {
 
 onMounted(() => {
   isClient.value = false
-  requestAnimationFrame(() => {
+  requestAnimationFrame(async () => {
+    const snapshotRisks = getRemoteAgentSnapshots().flatMap(snapshot => buildRisksFromAgentSnapshot(snapshot))
+    const remoteRiskIds = new Set(snapshotRisks.map(risk => risk.id))
+    riskEvents.value = [...snapshotRisks, ...queryRiskEvents({}).filter(risk => !remoteRiskIds.has(risk.id))]
+    try {
+      const remoteTasks = await remoteAgentApi.listTasks({ limit: '100' })
+      remoteTasks.forEach(restoreRemoteTaskBinding)
+      const remoteIds = new Set(remoteTasks.map((task) => task.task_id))
+      tasks.value = [...remoteTasks.map(mapRemoteTask), ...queryTasks({}).filter((task) => !remoteIds.has(task.id))]
+    } catch {
+      tasks.value = queryTasks({})
+    }
     isClient.value = true
   })
 })
@@ -79,7 +94,7 @@ onMounted(() => {
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <div>
-        <RiskHeatmapPreview />
+        <RiskHeatmapPreview :risks="riskEvents" />
       </div>
       <div class="lg:col-span-2">
         <RiskDistribution 

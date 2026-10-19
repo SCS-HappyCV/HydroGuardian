@@ -8,9 +8,9 @@ export interface TaskTemplateVO extends TaskTemplateData {
 export const taskTemplateDataList: TaskTemplateData[] = [
   {
     id: 'tpl-001',
-    name: '夜间重点巡查',
+    name: '近水沟渠筛查',
     category: 'inspection',
-    description: '适用于夜间高风险点位巡查，优先输出异常位置与建议动作。',
+    description: '融合正射影像、点云与几何特征，识别近水细长沟渠并排除道路。',
     defaultPriority: 'high',
     defaultZoneId: 'zone-01',
     isEnabled: true,
@@ -19,9 +19,9 @@ export const taskTemplateDataList: TaskTemplateData[] = [
   },
   {
     id: 'tpl-002',
-    name: '雨后快速复核',
+    name: '陡坡裸地排查',
     category: 'review',
-    description: '用于降雨后快速复核积水与排水设施状态。',
+    description: '筛查高于水线的陡坡裸地区域，结合高程与坡度证据进行风险排序。',
     defaultPriority: 'medium',
     defaultZoneId: 'zone-02',
     isEnabled: true,
@@ -30,9 +30,9 @@ export const taskTemplateDataList: TaskTemplateData[] = [
   },
   {
     id: 'tpl-003',
-    name: '闸门应急核验',
+    name: '近水扰动检测',
     category: 'emergency',
-    description: '用于闸门、泵站和边界设施的应急核验。',
+    description: '对比前后时相影像，定位近水新增扰动并输出变化证据。',
     defaultPriority: 'high',
     defaultZoneId: 'zone-03',
     isEnabled: true,
@@ -41,9 +41,9 @@ export const taskTemplateDataList: TaskTemplateData[] = [
   },
   {
     id: 'tpl-004',
-    name: '常规巡检模板',
+    name: '岸线综合巡查',
     category: 'inspection',
-    description: '适用于日常巡检任务，覆盖基础风险点排查。',
+    description: '面向日常岸线巡查，综合筛查沟渠、裸地和疑似变化区域。',
     defaultPriority: 'low',
     defaultZoneId: 'zone-04',
     isEnabled: true,

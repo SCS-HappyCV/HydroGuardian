@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">HydroGuardian 水利智巡</string>
+    <string name="title_activity_main">HydroGuardian 水利智巡</string>
+    <string name="package_name">com.hydroguardian.field</string>
+    <string name="custom_url_scheme">com.hydroguardian.field</string>
+</resources>

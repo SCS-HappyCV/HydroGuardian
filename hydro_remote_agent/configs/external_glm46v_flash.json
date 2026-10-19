@@ -1,0 +1,26 @@
+{
+  "schema_version": "vague_hydro.external_agent_baseline.v1",
+  "condition": "glm46v_flash_toolspec",
+  "family": "glm4v",
+  "model_id": "zai-org/GLM-4.6V-Flash",
+  "revision": "master",
+  "reference_huggingface_revision": "f6981164f90685b2cad1f545a19ce5a37868d33e",
+  "modelscope_model_id": "ZhipuAI/GLM-4.6V-Flash",
+  "modelscope_revision": "master",
+  "local_path": "/models/GLM-4.6V-Flash",
+  "dtype": "bfloat16",
+  "trust_remote_code": false,
+  "max_new_tokens": 1024,
+  "max_image_pixels": 262144,
+  "enable_thinking": false,
+  "decoding": {
+    "do_sample": false
+  },
+  "protocol": {
+    "gold_count": 50,
+    "prompt_profile": "full",
+    "real_experts": true,
+    "model_load_excluded_from_latency": true,
+    "ground_truth_access": false
+  }
+}

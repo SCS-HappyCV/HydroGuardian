@@ -1,0 +1,166 @@
+# UAVScenes 数据集标签映射文件
+# 基于 cmap.py 中的定义，共 26 个原始类别 (0-25)
+# 其中 0, 7, 8, 12, 21, 22, 23, 25 为空类别，映射为 ignore
+
+labels:
+  0 : "background"
+  1 : "roof"
+  2 : "dirt_motor_road"
+  3 : "paved_motor_road"
+  4 : "river"
+  5 : "pool"
+  6 : "bridge"
+  7 : "unlabeled"
+  8 : "unlabeled"
+  9 : "container"
+  10: "airstrip"
+  11: "traffic_barrier"
+  12: "unlabeled"
+  13: "green_field"
+  14: "wild_field"
+  15: "solar_board"
+  16: "umbrella"
+  17: "transparent_roof"
+  18: "car_park"
+  19: "paved_walk"
+  20: "sedan"
+  21: "unlabeled"
+  22: "unlabeled"
+  23: "unlabeled"
+  24: "truck"
+  25: "unlabeled"
+
+color_map: # RGB颜色映射 (来自 cmap.py)
+  0 : [0, 0, 0]           # background
+  1 : [119, 11, 32]       # roof
+  2 : [180, 165, 180]     # dirt_motor_road
+  3 : [128, 64, 128]      # paved_motor_road
+  4 : [173, 216, 230]     # river
+  5 : [0, 80, 100]        # pool
+  6 : [150, 100, 100]     # bridge
+  7 : [150, 120, 90]      # unlabeled
+  8 : [70, 70, 70]        # unlabeled
+  9 : [250, 170, 30]      # container
+  10: [81, 0, 81]         # airstrip
+  11: [102, 102, 156]     # traffic_barrier
+  12: [190, 153, 153]     # unlabeled
+  13: [107, 142, 35]      # green_field
+  14: [210, 180, 140]     # wild_field
+  15: [220, 220, 0]       # solar_board
+  16: [153, 153, 153]     # umbrella
+  17: [0, 0, 90]          # transparent_roof
+  18: [250, 170, 160]     # car_park
+  19: [244, 35, 232]      # paved_walk
+  20: [0, 0, 142]         # sedan
+  21: [224, 224, 192]     # unlabeled
+  22: [220, 20, 60]       # unlabeled
+  23: [192, 64, 128]      # unlabeled
+  24: [0, 0, 70]          # truck
+  25: [0, 60, 100]        # unlabeled
+
+# 学习映射: 原始ID -> 训练ID
+# 空类别 (0, 7, 8, 12, 21, 22, 23, 25) 映射为 ignore_label (0)
+# 有效类别 (1-6, 9-11, 13-20, 24) 映射为 1-18
+learning_map:
+  0 : 0      # background -> ignore
+  1 : 1      # roof
+  2 : 2      # dirt_motor_road
+  3 : 3      # paved_motor_road
+  4 : 4      # river
+  5 : 5      # pool
+  6 : 6      # bridge
+  7 : 0      # unlabeled -> ignore
+  8 : 0      # unlabeled -> ignore
+  9 : 7      # container
+  10: 8      # airstrip
+  11: 9      # traffic_barrier
+  12: 0      # unlabeled -> ignore
+  13: 10     # green_field
+  14: 11     # wild_field
+  15: 12     # solar_board
+  16: 13     # umbrella
+  17: 14     # transparent_roof
+  18: 15     # car_park
+  19: 16     # paved_walk
+  20: 17     # sedan
+  21: 0      # unlabeled -> ignore
+  22: 0      # unlabeled -> ignore
+  23: 0      # unlabeled -> ignore
+  24: 18     # truck
+  25: 0      # unlabeled -> ignore
+
+# 逆映射: 训练ID -> 原始ID
+learning_map_inv:
+  0 : 0      # ignore -> background
+  1 : 1      # roof
+  2 : 2      # dirt_motor_road
+  3 : 3      # paved_motor_road
+  4 : 4      # river
+  5 : 5      # pool
+  6 : 6      # bridge
+  7 : 9      # container
+  8 : 10     # airstrip
+  9 : 11     # traffic_barrier
+  10: 13     # green_field
+  11: 14     # wild_field
+  12: 15     # solar_board
+  13: 16     # umbrella
+  14: 17     # transparent_roof
+  15: 18     # car_park
+  16: 19     # paved_walk
+  17: 20     # sedan
+  18: 24     # truck
+
+# 忽略类别设置
+learning_ignore:
+  0: True    # ignore
+  1: False   # roof
+  2: False   # dirt_motor_road
+  3: False   # paved_motor_road
+  4: False   # river
+  5: False   # pool
+  6: False   # bridge
+  7: False   # container
+  8: False   # airstrip
+  9: False   # traffic_barrier
+  10: False  # green_field
+  11: False  # wild_field
+  12: False  # solar_board
+  13: False  # umbrella
+  14: False  # transparent_roof
+  15: False  # car_park
+  16: False  # paved_walk
+  17: False  # sedan
+  18: False  # truck
+
+# 数据集分割
+split:
+  train:
+    - "interval5_AMtown01"
+    - "interval5_AMtown02"
+    - "interval5_AMvalley01"
+    - "interval5_AMvalley02"
+    - "interval5_HKairport01"
+    - "interval5_HKairport02"
+    - "interval5_HKairport_GNSS01"
+    - "interval5_HKairport_GNSS02"
+    - "interval5_HKairport_GNSS_Evening"
+    - "interval5_HKisland01"
+    - "interval5_HKisland02"
+    - "interval5_HKisland_GNSS01"
+    - "interval5_HKisland_GNSS02"
+    - "interval5_HKisland_GNSS_Evening"
+  valid:
+    - "interval5_AMtown03"
+    - "interval5_AMvalley03"
+    - "interval5_HKairport03"
+    - "interval5_HKairport_GNSS03"
+    - "interval5_HKisland03"
+    - "interval5_HKisland_GNSS03"
+  test:
+    - "interval5_AMtown03"
+    - "interval5_AMvalley03"
+    - "interval5_HKairport03"
+    - "interval5_HKairport_GNSS03"
+    - "interval5_HKisland03"
+    - "interval5_HKisland_GNSS03"

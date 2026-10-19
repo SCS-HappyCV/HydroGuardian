@@ -1,0 +1,60 @@
+{
+  "schema_version": "vague_hydro.external_agent_comparison.v1",
+  "protocol_id": "external_agent_comparison_v1_50",
+  "status": "frozen",
+  "gold": {
+    "path": "runs/hydro_remote_agent/agent_e2e_comparison_v1/gold_50.jsonl",
+    "sha256": "23a29fdba37029992b641561244bc7b3d7ca590217ab0cba06ba437963696463",
+    "count": 50,
+    "action_counts": {
+      "direct_answer": 10,
+      "tool_call": 20,
+      "workflow": 20
+    },
+    "language_counts": {
+      "en": 25,
+      "zh": 25
+    },
+    "unique_sample_count": 50
+  },
+  "conditions": [
+    {
+      "id": "tool_observation_react",
+      "role": "internal_strong_baseline",
+      "reuse_frozen_run": true
+    },
+    {
+      "id": "glm46v_flash_toolspec",
+      "role": "independent_external_vlm_baseline",
+      "model_id": "zai-org/GLM-4.6V-Flash",
+      "model_source": "ModelScope:ZhipuAI/GLM-4.6V-Flash@master",
+      "independent_language_backbone": "GLM-4-9B",
+      "training_on_vaguehydro": false,
+      "prompt_profile": "full",
+      "enable_thinking": false
+    },
+    {
+      "id": "vaguehydro_lora",
+      "role": "proposed_method",
+      "reuse_frozen_run": true
+    }
+  ],
+  "fairness": {
+    "same_gold_population": true,
+    "same_tool_registry": true,
+    "same_real_expert_service": true,
+    "same_executor": true,
+    "same_task_aware_scorer": true,
+    "same_max_image_pixels": 262144,
+    "deterministic_decoding": true,
+    "model_load_excluded_from_latency": true,
+    "ground_truth_and_metadata_hidden_from_planner": true,
+    "native_model_preprocessing_retained_with_shared_pixel_cap": true
+  },
+  "statistics": {
+    "reference_condition": "vaguehydro_lora",
+    "paired_bootstrap_samples": 10000,
+    "e2e_binary_test": "McNemar exact two-sided",
+    "task_quality_interval": "paired bootstrap 95% CI"
+  }
+}

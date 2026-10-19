@@ -1,0 +1,50 @@
+%%{init: {
+  "theme": "base",
+  "themeVariables": {
+    "background": "#FFFFFF",
+    "fontFamily": "Microsoft YaHei, Noto Sans CJK SC, Arial, sans-serif",
+    "primaryTextColor": "#17324D",
+    "lineColor": "#334155"
+  },
+  "flowchart": {
+    "curve": "basis",
+    "nodeSpacing": 34,
+    "rankSpacing": 44,
+    "htmlLabels": true
+  }
+}}%%
+flowchart TB
+    context["<b>水利巡查强约束环境</b><br/>风险目标稀疏　·　观测模态异构　·　任务语义隐含　·　工程判据严格"]:::context
+
+    subgraph main["面向可信风险认知的研究路径"]
+        direction LR
+        intent["<b>隐含巡查意图</b><br/><span>自然语言 · 业务目标</span>"]:::input
+        task["<b>结构化工程任务</b><br/><span>对象 · 时相 · 空间 · 质量</span>"]:::task
+        experts["<b>异构专家动态协同</b><br/><span>能力匹配 · 依赖生成</span>"]:::agent
+        evidence["<b>多模态证据传播</b><br/><span>影像 · 点云 · 掩膜 · 报告</span>"]:::evidence
+        verify["<b>独立质量验证</b><br/><span>完整性 · 一致性 · 不确定性</span>"]:::verify
+        review["<b>风险研判与现场复核</b><br/><span>候选风险 · 工单 · 人工确认</span>"]:::output
+
+        intent -->|语义编译| task
+        task -->|动态规划| experts
+        experts -->|专家执行| evidence
+        evidence -->|质量门控| verify
+        verify -->|证据转化| review
+    end
+
+    context -.约束任务理解与执行.-> task
+    review -.人工反馈沉淀为任务约束与质量边界.-> task
+
+    result["<b>目标跃迁</b>　模型输出　→　工程证据　→　可追溯决策"]:::result
+    review --> result
+
+    classDef context fill:#F5F8FC,stroke:#94A3B8,stroke-width:1.5px,color:#334155,font-size:17px;
+    classDef input fill:#EAF7F1,stroke:#2F8F68,stroke-width:2px,color:#174A37,font-size:16px;
+    classDef task fill:#EAF2FF,stroke:#3B6FB6,stroke-width:2px,color:#173F73,font-size:16px;
+    classDef agent fill:#EEF0FF,stroke:#5A67C8,stroke-width:2px,color:#303B86,font-size:16px;
+    classDef evidence fill:#F3EEFF,stroke:#7C5CBF,stroke-width:2px,color:#4C347C,font-size:16px;
+    classDef verify fill:#FFF5E8,stroke:#D98728,stroke-width:2px,color:#7A4613,font-size:16px;
+    classDef output fill:#FFF0ED,stroke:#C85A46,stroke-width:2px,color:#783327,font-size:16px;
+    classDef result fill:#17324D,stroke:#17324D,stroke-width:2px,color:#FFFFFF,font-size:17px;
+    style main fill:#FFFFFF,stroke:#CBD5E1,stroke-width:1.5px,color:#17324D
+    linkStyle default stroke:#334155,stroke-width:2px,color:#334155

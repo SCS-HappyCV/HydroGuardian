@@ -1,0 +1,50 @@
+{
+  "schema_version": "1.0",
+  "dataset_name": "VagueHydro",
+  "class_names": {
+    "1": "Shed",
+    "2": "Concretehouse",
+    "3": "Cementroad",
+    "4": "Dirtroad",
+    "5": "Slope",
+    "6": "Scarp",
+    "7": "Dam",
+    "8": "Vegetablefield",
+    "9": "Grassland",
+    "10": "Dryland",
+    "11": "Woodland",
+    "12": "Bareland",
+    "13": "Waterline",
+    "14": "Ditch",
+    "15": "Others"
+  },
+  "intents": [
+    "scene_summary",
+    "class_presence",
+    "attribute_judgement",
+    "relation_judgement",
+    "class_segmentation",
+    "attribute_segmentation",
+    "relation_segmentation",
+    "geometry_measurement",
+    "change_detection",
+    "full_scene_segmentation"
+  ],
+  "execution_modes": [
+    "direct_answer",
+    "tool_call",
+    "workflow",
+    "clarification",
+    "abstain"
+  ],
+  "output_granularities": [
+    "text",
+    "class_set",
+    "point_mask",
+    "point_labels",
+    "change_mask",
+    "geometry_report"
+  ],
+  "ambiguity_levels": ["source", "L0", "L1", "L2", "L3"],
+  "supported_relations": ["near", "above"]
+}

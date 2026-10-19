@@ -6,63 +6,63 @@
 @layer base {
   :root {
     /* Background & Surface */
-    --background: 220 40% 8%;
-    --foreground: 210 15% 95%;
-    --card: 220 35% 12%;
-    --card-foreground: 210 12% 92%;
-    --popover: 220 40% 10%;
+    --background: 212 63% 7%;
+    --foreground: 207 28% 96%;
+    --card: 211 49% 10%;
+    --card-foreground: 207 22% 92%;
+    --popover: 212 55% 8%;
     --popover-foreground: 210 15% 95%;
 
     /* Brand */
-    --primary: 210 85% 60%;
+    --primary: 212 84% 56%;
     --primary-foreground: 220 10% 98%;
-    --secondary: 240 15% 45%;
+    --secondary: 245 72% 70%;
     --secondary-foreground: 240 5% 96%;
-    --accent: 180 70% 55%;
+    --accent: 171 66% 50%;
     --accent-foreground: 180 10% 98%;
 
     /* Muted */
-    --muted: 220 20% 20%;
-    --muted-foreground: 220 10% 65%;
+    --muted: 211 31% 17%;
+    --muted-foreground: 211 14% 66%;
 
     /* State & UI */
-    --destructive: 5 75% 55%;
+    --destructive: 0 100% 68%;
     --destructive-foreground: 0 0% 100%;
-    --border: 220 25% 18%;
-    --input: 220 25% 18%;
-    --ring: 210 85% 60%;
-    --radius: 0.75rem;
+    --border: 211 35% 18%;
+    --input: 211 35% 18%;
+    --ring: 212 84% 56%;
+    --radius: 0.875rem;
 
     /* Hover states */
-    --primary-hover: 210 85% 68%;
-    --accent-hover: 180 70% 63%;
-    --muted-hover: 220 20% 26%;
-    --secondary-hover: 240 15% 52%;
+    --primary-hover: 212 88% 64%;
+    --accent-hover: 171 70% 58%;
+    --muted-hover: 211 31% 23%;
+    --secondary-hover: 245 75% 76%;
 
     /* State colors */
-    --success: 170 60% 50%;
-    --warning: 40 90% 60%;
+    --success: 156 57% 51%;
+    --warning: 39 90% 61%;
 
     /* Layout */
     --header-height: 60px;
 
     /* Sidebar */
-    --sidebar-background: 220 38% 10%;
+    --sidebar-background: 212 55% 8%;
     --sidebar-foreground: 210 12% 90%;
-    --sidebar-primary: 210 85% 60%;
+    --sidebar-primary: 212 84% 56%;
     --sidebar-primary-foreground: 220 10% 98%;
-    --sidebar-accent: 220 25% 16%;
+    --sidebar-accent: 211 38% 15%;
     --sidebar-accent-foreground: 210 12% 92%;
-    --sidebar-border: 220 25% 18%;
-    --sidebar-ring: 210 85% 60%;
+    --sidebar-border: 211 35% 16%;
+    --sidebar-ring: 212 84% 56%;
 
     /* Shadows (glow-based) */
-    --shadow-soft: inset 0 1px 0 0 rgba(255, 255, 255, 0.05);
-    --shadow-card: inset 0 1px 0 0 rgba(255, 255, 255, 0.05), 0 0 0 1px rgba(255, 255, 255, 0.05);
+    --shadow-soft: inset 0 1px 0 rgba(255, 255, 255, 0.045), 0 16px 48px rgba(1, 8, 18, 0.18);
+    --shadow-card: inset 0 1px 0 rgba(255, 255, 255, 0.045), 0 18px 56px rgba(1, 8, 18, 0.22);
 
     /* Gradients */
     --gradient-brand: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent)));
-    --gradient-glow: radial-gradient(ellipse at top, hsl(210 85% 30% / 0.15), transparent 50%);
+    --gradient-glow: radial-gradient(ellipse at top, hsl(212 84% 38% / 0.16), transparent 52%);
 
     /* Font stack */
     --font-sans: "PingFang SC", "Helvetica Neue", system-ui, -apple-system, sans-serif;
@@ -75,6 +75,7 @@
   body {
     @apply bg-background text-foreground antialiased;
     font-family: var(--font-sans);
+    background-image: radial-gradient(circle at 75% -10%, hsl(var(--primary) / 0.055), transparent 30%);
   }
 
   html {
@@ -101,12 +102,12 @@
   }
 
   .surface-base {
-    @apply bg-card/40 border border-white/10 rounded-[--radius] backdrop-blur-xl;
+    @apply bg-card/55 border border-white/[0.08] rounded-[--radius] backdrop-blur-xl;
     box-shadow: var(--shadow-card);
   }
 
   .surface-raised {
-    @apply bg-card/60 border border-white/10 rounded-[--radius] backdrop-blur-xl;
+    @apply bg-card/75 border border-white/10 rounded-[--radius] backdrop-blur-xl;
     box-shadow: var(--shadow-card);
   }
 
@@ -278,4 +279,3 @@
     @apply surface-base card-padding min-h-[300px] flex items-center justify-center;
   }
 }
-    

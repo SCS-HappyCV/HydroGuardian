@@ -1,0 +1,59 @@
+{
+  "schema_version": "vaguehydro.hard_negative_stress.config.v1",
+  "experiment": "vaguehydro_hard_negative_stress_v1",
+  "purpose": "preregistered_train_only_controlled_structural_mutation_stress_test",
+  "output": "runs/hydro_remote_agent/vaguehydro_hard_negative_stress_v1",
+  "train_source": "hydro_remote_agent/data/vague_hydro_sft_v2/train_curriculum_16360.jsonl",
+  "expected_train_source_sha256": "2a45358cb7eb15dc7cad4862dd613b5c3ceb1e70145315dff621ff9944956870",
+  "registry": "hydro_remote_agent/configs/tool_registry.yaml",
+  "seed": 20261006,
+  "sampling": {
+    "action_types": ["tool_call", "workflow"],
+    "difficulty_mapping": {"L0": "easy", "L1": "medium", "L2": "hard", "L3": "hard"},
+    "quota_per_action_difficulty_cell": 4,
+    "total_samples": 24,
+    "selection_inputs": ["action_type", "difficulty", "argument_complexity", "tool_sequence", "dag_complexity", "seeded_id_hash"],
+    "forbidden_selection_inputs": ["reward_a", "reward_b", "model_output", "frozen_test", "validation"]
+  },
+  "mutation_families": [
+    "tool_replacement",
+    "argument_value",
+    "argument_slot",
+    "workflow_node",
+    "dag_link",
+    "artifact_reference",
+    "verification_stop",
+    "invalid_schema"
+  ],
+  "equivalence_controls": ["json_key_order", "set_order", "workflow_step_id_alpha_rename"],
+  "ranking_requirements": {
+    "gold_above_every_hard_negative": true,
+    "target_components_decline": true,
+    "non_target_components_follow_declared_stability": true,
+    "invalid_hard_zero": true,
+    "equivalence_preserved": true,
+    "string_similarity_forbidden": true
+  },
+  "preregistered_gates": {
+    "overall_pairwise_ranking_accuracy_min": 0.95,
+    "each_mutation_family_pairwise_ranking_accuracy_min": 0.90,
+    "invalid_hard_zero_rate": 1.0,
+    "equivalence_preservation_rate": 1.0,
+    "target_component_decline_rate": 1.0,
+    "declared_stability_rate": 1.0,
+    "required_positive_margin_categories": ["tool", "argument", "workflow"],
+    "minimum_positive_margin_categories": 3
+  },
+  "constraints": {
+    "train_only": true,
+    "read_frozen_test": false,
+    "start_training": false,
+    "start_grpo": false,
+    "start_dpo": false,
+    "start_hard_negative_sft": false,
+    "call_model": false,
+    "call_verifier": false,
+    "call_real_experts": false,
+    "overwrite_old_runs": false
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "request_id": "demo_abstain_01",
+  "intent": "unsupported_analysis",
+  "action": {
+    "type": "abstain",
+    "reason": "现有专家均不支持流速反演。",
+    "error_code": "unsupported_capability",
+    "recoverable": false
+  },
+  "expected_output": {
+    "type": "text",
+    "coordinate_space": "none"
+  }
+}

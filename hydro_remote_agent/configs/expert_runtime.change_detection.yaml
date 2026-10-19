@@ -1,0 +1,22 @@
+schema_version: "1.0"
+work_dir: "../runs/expert_runtime_change_detection"
+experts:
+  point_semantic_segmentation:
+    backend: mock
+    enabled: false
+  image_change_detection:
+    backend: rfanet_change_detection
+    enabled: true
+    checkpoint_path: "../checkpoints/change_detection/best_model.pth"
+    vendor_root: "../vendor/change_detection"
+    device: "cuda:0"
+    input_size: 256
+  language_guided_point_segmentation:
+    backend: mock
+    enabled: false
+  geometry_relation_analysis:
+    backend: mock
+    enabled: false
+  result_quality_verification:
+    backend: mock
+    enabled: false

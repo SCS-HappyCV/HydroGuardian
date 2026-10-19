@@ -1,0 +1,8 @@
+---
+import StandardLayout from '@/layouts/StandardLayout.astro'
+import TaskHistoryContent from '@/components/task_history/TaskHistoryContent.vue'
+---
+
+<StandardLayout title="历史任务 - HydroGuardian 水利智巡">
+  <TaskHistoryContent client:load />
+</StandardLayout>

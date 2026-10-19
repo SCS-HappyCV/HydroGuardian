@@ -1,0 +1,8 @@
+**
+!hydro_remote_agent/
+!hydro_remote_agent/**
+hydro_remote_agent/checkpoints/**
+hydro_remote_agent/runs/**
+hydro_remote_agent/data/**
+hydro_remote_agent/**/__pycache__/**
+hydro_remote_agent/**/*.pyc

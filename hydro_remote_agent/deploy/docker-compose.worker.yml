@@ -1,0 +1,36 @@
+name: hydro-remote-worker
+
+services:
+  expert-worker:
+    build:
+      context: ../../
+      dockerfile: hydro_remote_agent/deploy/Dockerfile.expert
+    image: hydro-expert-worker:local
+    restart: unless-stopped
+    environment:
+      AGENT_WS_URL: ${AGENT_WS_URL:?Set AGENT_WS_URL in .env}
+      WORKER_ID: ${WORKER_ID:-gpu-worker-01}
+      WORKER_SECRET: ${WORKER_SECRET:?Set WORKER_SECRET in .env}
+      MINIO_ENDPOINT: ${REMOTE_MINIO_ENDPOINT:?Set REMOTE_MINIO_ENDPOINT in .env}
+      MINIO_ACCESS_KEY: ${MINIO_WORKER_USER:?Set MINIO_WORKER_USER in .env}
+      MINIO_SECRET_KEY: ${MINIO_WORKER_PASSWORD:?Set MINIO_WORKER_PASSWORD in .env}
+      MINIO_SECURE: ${MINIO_SECURE:-false}
+      EXPERT_WORK_DIR: /data/expert_outputs
+      HF_HUB_OFFLINE: "1"
+      TRANSFORMERS_OFFLINE: "1"
+      PYTORCH_CUDA_ALLOC_CONF: ${PYTORCH_CUDA_ALLOC_CONF:-max_split_size_mb:256}
+    volumes:
+      - expert-outputs:/data/expert_outputs
+      - ${GUFNET_MODEL_DIR:?Set GUFNET_MODEL_DIR in .env}:/models/gufnet:ro
+      - ${CHANGE_MODEL_DIR:?Set CHANGE_MODEL_DIR in .env}:/models/change_detection:ro
+      - ${HYDRO_PROGRAM3D_MODEL_DIR:?Set HYDRO_PROGRAM3D_MODEL_DIR in .env}:/models/hydro_program3d:ro
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ["${EXPERT_GPU_ID:-0}"]
+              capabilities: [gpu]
+
+volumes:
+  expert-outputs:

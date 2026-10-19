@@ -10,17 +10,26 @@ import { Separator } from '@/components/ui/separator'
 import SafeIcon from '@/components/common/SafeIcon.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
+import AiSourceSummary from './AiSourceSummary.vue'
 import WorkorderTimelineSection from './WorkorderTimelineSection.vue'
 import WorkorderReviewDialog from './WorkorderReviewDialog.vue'
 import AttachmentUploadZone from './AttachmentUploadZone.vue'
-import { getById as getWorkorderById, savePersisted as saveWorkorder } from '@/data/WorkorderService'
-import { queryByOrderId as getTimelineByOrderId } from '@/data/WorkorderTimelineService'
+import RemoteEvidenceGallery from './RemoteEvidenceGallery.vue'
+import FieldLocationPanel from '@/components/common/FieldLocationPanel.vue'
+import { getById as getWorkorderById, update as updateWorkorder } from '@/data/WorkorderService'
+import { appendEvent, queryByOrderId as getTimelineByOrderId } from '@/data/WorkorderTimelineService'
 import { getByOrderIdVO as getReviewByOrderId } from '@/data/WorkorderReviewService'
 import { getById as getRiskById } from '@/data/RiskEventService'
+import { getById as getTaskById } from '@/data/TaskService'
+import { getAll as getAllEvidence, query as queryEvidence, savePersisted as saveEvidence } from '@/data/WorkorderEvidenceService'
 import { getAll as getAllUsers } from '@/data/UserService'
+import { getAgentWorkorderContext } from '@/lib/agent-workorder-context'
 import type { WorkorderVO } from '@/data/WorkorderService'
 import type { WorkorderTimelineVO } from '@/data/WorkorderTimelineService'
 import type { WorkorderReviewVO } from '@/data/WorkorderReviewService'
+import { remoteAgentApi } from '@/api/remote-agent-api'
+import type { RemoteWorkorder } from '@/lib/remote-workorder-types'
+import { mapRemoteEvidence, mapRemoteReview, mapRemoteRisk, mapRemoteTimeline, mapRemoteWorkorder } from '@/lib/remote-workorder-mapper'
 
 const isClient = ref(true)
 const currentOrderId = ref('wo-2001')
@@ -28,7 +37,10 @@ const workorder = ref<WorkorderVO | null>(null)
 const timeline = ref<WorkorderTimelineVO[]>([])
 const review = ref<WorkorderReviewVO | null>(null)
 const risk = ref<any>(null)
+const sourceTask = ref<any>(null)
+const evidence = ref<any[]>([])
 const users = ref(getAllUsers())
+const remoteOrder = ref<RemoteWorkorder | null>(null)
 
 const processingNote = ref('')
 const selectedAssignee = ref<string | undefined>()
@@ -38,7 +50,7 @@ const attachments = ref<File[]>([])
 const statusFlow = {
   todo: ['doing'],
   doing: ['review'],
-  review: ['closed'],
+  review: [],
   closed: []
 }
 
@@ -54,14 +66,37 @@ const statusLabels: Record<string, string> = {
   closed: '已关闭'
 }
 
-const loadWorkorderData = () => {
+const applyRemoteOrder = (order: RemoteWorkorder) => {
+  remoteOrder.value = order
+  workorder.value = mapRemoteWorkorder(order)
+  selectedAssignee.value = order.assignee_user_id || undefined
+  timeline.value = mapRemoteTimeline(order)
+  review.value = mapRemoteReview(order)
+  risk.value = mapRemoteRisk(order)
+  sourceTask.value = getTaskById(order.task_id || '')
+  evidence.value = mapRemoteEvidence(order)
+}
+
+const loadWorkorderData = async () => {
+  if (currentOrderId.value.startsWith('wo_')) {
+    try {
+      applyRemoteOrder(await remoteAgentApi.getWorkorder(currentOrderId.value))
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : '工单同步失败')
+    }
+    return
+  }
   const wo = getWorkorderById(currentOrderId.value)
   if (wo) {
     workorder.value = wo
     selectedAssignee.value = wo.assigneeUserId
     timeline.value = getTimelineByOrderId(currentOrderId.value)
     review.value = getReviewByOrderId(currentOrderId.value)
-    risk.value = getRiskById(wo.riskId)
+    const agentContext = getAgentWorkorderContext(wo)
+    risk.value = agentContext?.risk || getRiskById(wo.riskId)
+    sourceTask.value = getTaskById(wo.taskId || risk.value?.taskId)
+    const storedEvidence = queryEvidence({ filter: { orderId: currentOrderId.value } })
+    evidence.value = [...(agentContext?.evidence || []), ...storedEvidence]
   }
 }
 
@@ -70,15 +105,12 @@ onMounted(() => {
   requestAnimationFrame(() => {
     const params = new URLSearchParams(window.location.search)
     const orderId = params.get('orderId')
-    if (orderId) {
-      currentOrderId.value = orderId
-      loadWorkorderData()
-    }
-    isClient.value = true
+    if (orderId) currentOrderId.value = orderId
+    loadWorkorderData().finally(() => { isClient.value = true })
   })
 })
 
-const handleStatusTransition = (newStatus: string) => {
+const handleStatusTransition = async (newStatus: string) => {
   if (!workorder.value) return
   
   if (newStatus === 'doing' && !selectedAssignee.value) {
@@ -91,32 +123,100 @@ const handleStatusTransition = (newStatus: string) => {
     return
   }
 
-  const updatedWorkorders = [
-    ...require('@/data/WorkorderService').workorderDataList.map((w: any) => 
-      w.id === workorder.value!.id 
-        ? { ...w, status: newStatus, updatedAt: new Date().toISOString() }
-        : w
-    )
-  ]
-  saveWorkorder(updatedWorkorders)
-  
-  workorder.value = { ...workorder.value, status: newStatus as any }
+  if (remoteOrder.value) {
+    try {
+      if (newStatus === 'doing') {
+        applyRemoteOrder(await remoteAgentApi.startWorkorder(remoteOrder.value.workorder_id, { actor_user_id: selectedAssignee.value }))
+      } else if (newStatus === 'review') {
+        const uploaded = []
+        for (const file of attachments.value) {
+          const presigned = await remoteAgentApi.presignUpload({ filename: file.name, media_type: file.type || 'application/octet-stream', job_id: remoteOrder.value.job_id })
+          await remoteAgentApi.uploadFile(presigned.upload_url, file)
+          await remoteAgentApi.completeUpload(presigned.artifact.artifact_id, { workorder_id: remoteOrder.value.workorder_id, evidence_type: 'after' })
+          uploaded.push({ artifact_id: presigned.artifact.artifact_id, title: file.name })
+        }
+        applyRemoteOrder(await remoteAgentApi.submitWorkorderFeedback(remoteOrder.value.workorder_id, { actor_user_id: selectedAssignee.value, note: processingNote.value, evidence: uploaded }))
+      }
+      toast.success(`工单状态已更新为"${statusLabels[newStatus]}"`)
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : '工单状态更新失败')
+    }
+    return
+  }
+
+  const now = new Date().toISOString()
+  const updated = updateWorkorder(workorder.value.id, {
+    status: newStatus as any,
+    summary: newStatus === 'review' ? processingNote.value : workorder.value.summary,
+    updatedAt: now,
+  })
+  if (updated) workorder.value = { ...workorder.value, ...updated }
+
+  if (newStatus === 'review') {
+    const generatedEvidence = [
+      {
+        id: `evi-note-${Date.now()}`,
+        orderId: workorder.value.id,
+        evidenceType: 'after' as const,
+        title: '现场核查与处置说明',
+        content: processingNote.value,
+        createdAt: now,
+      },
+      ...attachments.value.map((file, index) => ({
+        id: `evi-file-${Date.now()}-${index}`,
+        orderId: workorder.value!.id,
+        evidenceType: 'after' as const,
+        title: file.name,
+        content: '现场人员提交的定位照片或处置材料。',
+        createdAt: now,
+      })),
+    ]
+    saveEvidence([...getAllEvidence().filter((item) => item.orderId !== workorder.value?.id || item.evidenceType !== 'after'), ...generatedEvidence])
+    evidence.value = queryEvidence({ filter: { orderId: workorder.value.id } })
+  }
+
+  const action = newStatus === 'doing' ? 'processing' : newStatus === 'review' ? 'review_requested' : 'closed'
+  appendEvent({
+    id: `wot-${Date.now()}`,
+    orderId: workorder.value.id,
+    actorUserId: selectedAssignee.value || workorder.value.reviewerUserId || 'user-001',
+    action,
+    note: newStatus === 'doing'
+      ? '现场处置任务已启动。'
+      : newStatus === 'review'
+        ? processingNote.value
+        : '人工复核通过，工单闭环关闭。',
+    createdAt: now,
+  })
+  timeline.value = getTimelineByOrderId(workorder.value.id)
   toast.success(`工单状态已更新为"${statusLabels[newStatus]}"`)
 }
 
-const handleAssigneeChange = (userId: string) => {
+const handleAssigneeChange = async (userId: string) => {
   if (!workorder.value) return
   
   selectedAssignee.value = userId
-  const updatedWorkorders = [
-    ...require('@/data/WorkorderService').workorderDataList.map((w: any) =>
-      w.id === workorder.value!.id
-        ? { ...w, assigneeUserId: userId, updatedAt: new Date().toISOString() }
-        : w
-    )
-  ]
-  saveWorkorder(updatedWorkorders)
-  workorder.value = { ...workorder.value, assigneeUserId: userId }
+  if (remoteOrder.value) {
+    try {
+      applyRemoteOrder(await remoteAgentApi.assignWorkorder(remoteOrder.value.workorder_id, { assignee_user_id: userId, actor_user_id: userId }))
+      toast.success('责任人已更新')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : '责任人更新失败')
+    }
+    return
+  }
+  const now = new Date().toISOString()
+  const updated = updateWorkorder(workorder.value.id, { assigneeUserId: userId, updatedAt: now })
+  if (updated) workorder.value = { ...workorder.value, ...updated }
+  appendEvent({
+    id: `wot-${Date.now()}`,
+    orderId: workorder.value.id,
+    actorUserId: userId,
+    action: 'assigned',
+    note: '人工确认风险并完成现场责任人指派。',
+    createdAt: now,
+  })
+  timeline.value = getTimelineByOrderId(workorder.value.id)
   toast.success('责任人已更新')
 }
 
@@ -129,6 +229,11 @@ const handleReviewSubmit = (decision: 'approved' | 'rejected', comment: string) 
   
   showReviewDialog.value = false
   toast.success(`复核结果已提交：${decision === 'approved' ? '通过' : '驳回'}`)
+}
+
+const handleOpenReview = () => {
+  if (!workorder.value) return
+  window.location.href = `./workorder-review.html?orderId=${encodeURIComponent(workorder.value.id)}`
 }
 
 const handleAttachmentAdd = (file: File) => {
@@ -147,8 +252,14 @@ const handleBackToCenter = () => {
 
 const handleViewRisk = () => {
   if (workorder.value?.riskId) {
-    window.location.href = `./risk-workspace.html?riskId=${workorder.value.riskId}`
+    const params = new URLSearchParams({ riskId: workorder.value.riskId })
+    if (workorder.value.taskId) params.set('taskId', workorder.value.taskId)
+    window.location.href = `./risk-workspace.html?${params.toString()}`
   }
+}
+
+const handleOpenAuditReport = () => {
+  if (remoteOrder.value) window.location.href = `./audit-report.html?jobId=${encodeURIComponent(remoteOrder.value.job_id)}&workorderId=${encodeURIComponent(remoteOrder.value.workorder_id)}`
 }
 </script>
 
@@ -164,6 +275,9 @@ const handleViewRisk = () => {
       ]"
     >
       <template #actions>
+        <Button v-if="remoteOrder" variant="outline" size="sm" class="gap-2" @click="handleOpenAuditReport">
+          <SafeIcon name="FileCheck2" :size="16" />审计报告
+        </Button>
         <Button 
           variant="outline" 
           size="sm"
@@ -177,7 +291,23 @@ const handleViewRisk = () => {
     </PageHeader>
 
     <div class="flex-1 overflow-y-auto min-h-0 page-body">
-      <div class="space-y-6 max-w-6xl">
+      <div class="mx-auto max-w-7xl space-y-6">
+        <section class="grid grid-cols-4 overflow-hidden rounded-2xl border border-border/60 bg-card/40">
+          <div v-for="(stage, index) in [{ label: '待接收', icon: 'Inbox' }, { label: '现场核查', icon: 'MapPinCheck' }, { label: '人工复核', icon: 'UserRoundCheck' }, { label: '闭环完成', icon: 'BadgeCheck' }]" :key="stage.label" class="relative flex items-center gap-3 border-r border-border/40 p-4 last:border-r-0" :class="index <= ({ todo: 0, doing: 1, review: 2, closed: 3 }[workorder.status] ?? 0) ? 'bg-primary/[0.07]' : 'opacity-45'"><span class="grid h-8 w-8 place-items-center rounded-full" :class="index <= ({ todo: 0, doing: 1, review: 2, closed: 3 }[workorder.status] ?? 0) ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'"><SafeIcon :name="stage.icon" :size="15" /></span><div><p class="text-[10px] text-muted-foreground">阶段 {{ index + 1 }}</p><p class="text-xs font-medium">{{ stage.label }}</p></div></div>
+        </section>
+        <AiSourceSummary
+          :workorder="workorder"
+          :risk="risk"
+          :task="sourceTask"
+          :evidence="evidence"
+        />
+        <RemoteEvidenceGallery v-if="remoteOrder" :evidence="remoteOrder.evidence" />
+        <FieldLocationPanel
+          :location="workorder.location || risk?.location"
+          :label="workorder.title"
+          title="现场核查位置"
+        />
+
         <!-- 工单基本信息 -->
         <Card class="surface-base border-border/50">
           <CardHeader class="pb-4">
@@ -223,27 +353,17 @@ const handleViewRisk = () => {
 
             <Separator class="opacity-30" />
 
-            <!-- 来源风险信息 -->
-            <div class="space-y-3">
-              <h4 class="text-sm font-semibold text-foreground">来源风险</h4>
-              <div class="bg-muted/20 border border-border/30 rounded p-3 space-y-2">
-                <div class="flex items-start justify-between gap-2">
-                  <div class="flex-1">
-                    <p class="text-sm font-medium text-foreground">{{ risk?.title || '风险点' }}</p>
-                    <p class="text-xs text-muted-foreground mt-1">{{ risk?.description }}</p>
-                  </div>
-                  <StatusBadge :status="risk?.level || 'high'" size="sm" />
+            <div class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/40 bg-muted/15 p-3">
+              <div>
+                <div class="text-xs font-medium text-foreground">来源关系已锁定</div>
+                <div class="mt-1 text-[11px] text-muted-foreground">
+                  任务 {{ workorder.taskId || risk?.taskId || '-' }} · 风险 {{ workorder.riskId }} · Case {{ workorder.caseId || risk?.caseId || '-' }}
                 </div>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  class="text-primary hover:text-primary-hover gap-1 px-0"
-                  @click="handleViewRisk"
-                >
-                  <SafeIcon name="ExternalLink" :size="14" />
-                  查看风险详情
-                </Button>
               </div>
+              <Button variant="outline" size="sm" class="gap-1.5" @click="handleViewRisk">
+                <SafeIcon name="ExternalLink" :size="13" />
+                返回风险证据
+              </Button>
             </div>
           </CardContent>
         </Card>
@@ -326,6 +446,7 @@ const handleViewRisk = () => {
                     />
                     {{ nextStatus === 'doing' ? '开始处理' : nextStatus === 'review' ? '申请复核' : '关闭工单' }}
                   </Button>
+                  <Button v-if="workorder.status === 'review'" class="flex-1 gap-2" @click="handleOpenReview"><SafeIcon name="UserRoundCheck" :size="16" />进入人工复核</Button>
                 </div>
               </CardContent>
             </Card>
@@ -333,7 +454,12 @@ const handleViewRisk = () => {
 
           <!-- 处理时间线标签页 -->
           <TabsContent value="timeline">
-            <WorkorderTimelineSection :timeline="timeline" />
+            <WorkorderTimelineSection
+              :workorder="workorder"
+              :timeline="timeline"
+              :evidence="evidence"
+              :review="review"
+            />
           </TabsContent>
 
           <!-- 复核记录标签页 -->
